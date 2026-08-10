@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replay Converter</title>
+<style>
+  :root{--orange:#E08A3C;--orange-dark:#C9762C;--text:#2c2c2a;--muted:#6b6a64;--border:#dcdad2;--surface:#faf9f5;--card:#fff;--danger:#a32d2d;--ok:#3f6b4a;}
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:#f0efe9;margin:0;padding:24px 16px;line-height:1.6;}
+  .wrap{max-width:680px;margin:0 auto;}
+  .header{background:var(--orange);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+  .header h1{margin:0;font-size:22px;font-weight:600;color:#4A2A0C;}
+  .header p{margin:8px 0 0;font-size:14px;color:#5E3612;}
+  .howto{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+  .howto p.label{margin:0 0 14px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+  .step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;}
+  .step:last-child{margin-bottom:0;}
+  .step .num{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange);color:#4A2A0C;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .step .txt{font-size:14px;line-height:1.5;padding-top:2px;}
+  code.k{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;}
+  select{height:42px;cursor:pointer;}
+  textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;resize:vertical;min-height:160px;}
+  select:focus,textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(224,138,60,.2);}
+  .actions{display:flex;gap:10px;align-items:center;margin:14px 0 20px;}
+  button.primary{background:var(--orange);border:none;color:#4A2A0C;font-weight:600;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;}
+  button.primary:hover{background:var(--orange-dark);}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:10px;}
+  button.ghost:hover{background:var(--surface);}
+  #status{font-size:13px;color:var(--muted);}
+  #outwrap{display:none;}
+  #output{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;word-break:break-all;white-space:pre-wrap;}
+  #notes{margin-top:14px;font-size:13px;line-height:1.7;}
+  .srcbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .src{font-size:12.5px;color:var(--muted);}
+  .src.ok{color:var(--ok);}
+  .src.warn{color:var(--danger);}
+  button.mini{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;}
+  button.mini:hover{background:var(--surface);color:var(--text);}
+  #notes .h{font-weight:600;margin:0 0 4px;}
+  .foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Replay converter</h1>
+    <p>Turn a Wiglett replay analysis into a single line of battle data — with every Pok&eacute;mon checked against the coach's roster.</p>
+  </div>
+  <div class="howto">
+    <p class="label">How to use</p>
+    <div class="step"><div class="num">1</div><div class="txt">Run <code class="k">/analyse</code> on the replay using Wiglett on Discord.</div></div>
+    <div class="step"><div class="num">2</div><div class="txt">Paste the <strong>entire</strong> Wiglett output below &mdash; including the <strong>Replay Analysis</strong> heading &mdash; and pick the winner and loser.</div></div>
+    <div class="step"><div class="num">3</div><div class="txt">Paste the result into the <strong>Battle Data Raw</strong> tab.</div></div>
+    <p style="margin:14px 0 0;font-size:12.5px;color:var(--muted);">Rosters are read live from the Backend tab each time this page loads, so free agency pickups and trades apply automatically.</p>
+  </div>
+  <div class="srcbar">
+    <span id="src" class="src">Loading rosters&hellip;</span>
+    <button class="mini" id="refresh">Refresh</button>
+  </div>
+  <div class="row">
+    <div><label for="winner">Winner</label><select id="winner"></select></div>
+    <div><label for="loser">Loser</label><select id="loser"></select></div>
+  </div>
+  <label for="input">Paste Wiglett output</label>
+  <textarea id="input" placeholder="Replay Analysis&#10;Result: Player won 3-0  ..."></textarea>
+  <div class="actions"><button class="primary" id="convert">Convert</button><span id="status"></span></div>
+  <div id="outwrap">
+    <label>Output &mdash; paste into the Battle Data Raw tab</label>
+    <div id="output"></div>
+    <button class="ghost" id="copy">Copy</button>
+    <div id="notes"></div>
+  </div>
+  <div class="foot">Pok&eacute;mon league replay formatter</div>
+</div>
+<script>
+(function(){
+const SNAPSHOT={
+"Qasim":[["dragapult","Dragapult"],["tapu-lele","Tapu Lele"],["ting-lu","Ting-Lu"],["heatran","Heatran"],["hawlucha","Hawlucha"],["tentacruel","Tentacruel"],["eelektross","Eelektross"],["venusaur-mega","Venusaur-Mega"],["obstagoon","Obstagoon"],["golurk","Golurk"],["alcremie","Alcremie"]],
+"Charu":[["great-tusk","Great Tusk"],["zeraora","Zeraora"],["slowking","Slowking"],["forretress","Forretress"],["spectrier","Spectrier"],["fezandipiti","Fezandipiti"],["silvally","Silvally"],["talonflame","Talonflame"],["rotom-mow","Rotom-Mow"],["tyranitar-mega","Tyranitar-Mega"],["sandslash-alola","Sandslash-Alola"]],
+"Tricia":[["iron-valiant","Iron Valiant"],["roaring-moon","Roaring Moon"],["slowking-galar","Slowking-Galar"],["empoleon","Empoleon"],["tangrowth","Tangrowth"],["porygon2","Porygon2"],["arcanine","Arcanine"],["raichu-mega-x","Raichu-Mega-X"],["gligar","Gligar"],["cryogonal","Cryogonal"],["piplup","Piplup"]],
+"Harnoor":[["gouging-fire","Gouging Fire"],["corviknight","Corviknight"],["scream-tail","Scream Tail"],["torkoal","Torkoal"],["iron-hands","Iron Hands"],["krookodile","Krookodile"],["ribombee","Ribombee"],["venusaur","Venusaur"],["walking-wake","Walking Wake"],["dusclops","Dusclops"],["bastiodon","Bastiodon"]],
+"Uday":[["meowscarada","Meowscarada"],["primarina","Primarina"],["scizor","Scizor"],["moltres","Moltres"],["lopunny-mega","Lopunny-Mega"],["uxie","Uxie"],["raging-bolt","Raging Bolt"],["landorus","Landorus"],["eldegoss","Eldegoss"],["sliggoo-hisui","Sliggoo-Hisui"]],
+"Ajay":[["diancie-mega","Diancie-Mega"],["sneasler","Sneasler"],["zygarde","Zygarde"],["rotom-heat","Rotom-Heat"],["mew","Mew"],["skarmory","Skarmory"],["gengar","Gengar"],["milotic","Milotic"],["umbreon","Umbreon"],["bouffalant","Bouffalant"]],
+"Arnav":[["raichu-mega-y","Raichu-Mega-Y"],["landorus-therian","Landorus-Therian"],["slowbro","Slowbro"],["cinderace","Cinderace"],["florges","Florges"],["greninja","Greninja"],["hitmontop","Hitmontop"],["muk-alola","Muk-Alola"],["bronzong","Bronzong"],["arboliva","Arboliva"]],
+"Jashan":[["tapu-koko","Tapu Koko"],["gliscor","Gliscor"],["iron-moth","Iron Moth"],["baxcalibur","Baxcalibur"],["quaquaval","Quaquaval"],["iron-crown","Iron Crown"],["meganium-mega","Meganium-Mega"],["incineroar","Incineroar"],["golisopod","Golisopod"],["charjabug","Charjabug"]],
+"Daren":[["dragalge-mega","Dragalge-Mega"],["iron-treads","Iron Treads"],["tornadus-therian","Tornadus-Therian"],["rotom-wash","Rotom-Wash"],["chi-yu","Chi-Yu"],["slither-wing","Slither Wing"],["klefki","Klefki"],["sinistcha","Sinistcha"],["ditto","Ditto"],["bewear","Bewear"]],
+"Gurpreet":[["urshifu","Urshifu"],["iron-bundle","Iron Bundle"],["thundurus","Thundurus"],["chimecho-mega","Chimecho-Mega"],["sylveon","Sylveon"],["alomomola","Alomomola"],["ogerpon-hearthflame","Ogerpon-Hearthflame"],["salamence","Salamence"],["clodsire","Clodsire"],["probopass","Probopass"]],
+"Harsh":[["greninja-mega","Greninja-Mega"],["terapagos","Terapagos"],["clefable","Clefable"],["rillaboom","Rillaboom"],["archaludon","Archaludon"],["thundurus-therian","Thundurus-Therian"],["zoroark-hisui","Zoroark-Hisui"],["reuniclus","Reuniclus"],["flareon","Flareon"],["lapras","Lapras"]],
+"Ishan":[["delphox-mega","Delphox-Mega"],["palafin","Palafin"],["garchomp","Garchomp"],["zapdos","Zapdos"],["tyranitar","Tyranitar"],["dhelmise","Dhelmise"],["tinkaton","Tinkaton"],["snorlax","Snorlax"],["okidogi","Okidogi"],["murkrow","Murkrow"]]};
+var ROSTERS=SNAPSHOT;
+var NAMES=Object.keys(ROSTERS);
+// ---- LIVE ROSTER FETCH -------------------------------------------------
+// Backend tab: column I = display, J = showdown id, K = coach
+var SHEET_ID="16mlRM1nAmag-ylz527_W_XW4fkatidyq6MwKnZjgzRA";
+var BACKEND_GID="601021622";
+function csvUrls(){
+  return [
+    "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&gid="+BACKEND_GID,
+    "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+BACKEND_GID
+  ];
+}
+// minimal RFC4180 CSV parser
+function parseCSV(text){
+  var rows=[],row=[],cur="",q=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=c;
+    } else {
+      if(c==='"')q=true;
+      else if(c===','){row.push(cur);cur="";}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(c==='\r'){}
+      else cur+=c;
+    }
+  }
+  if(cur.length||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+// Showdown-style display name from the column J id, using column I as a hint
+function displayFromId(id, colI){
+  var known={};
+  // If column I is already Showdown-shaped (contains a hyphen form or no prefix), prefer derived form.
+  var parts=id.split("-");
+  var FORMWORDS={mega:"Mega",alola:"Alola",galar:"Galar",hisui:"Hisui",paldea:"Paldea",therian:"Therian",incarnate:"Incarnate",origin:"Origin",wellspring:"Wellspring",hearthflame:"Hearthflame",cornerstone:"Cornerstone",teal:"Teal",x:"X",y:"Y"};
+  // base = leading tokens that are not form words
+  var base=[],forms=[];
+  for(var i=0;i<parts.length;i++){
+    if(i>0&&FORMWORDS[parts[i]])forms.push(FORMWORDS[parts[i]]);
+    else base.push(parts[i]);
+  }
+  function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
+  // Multi-word base species keep spaces unless the base is a hyphenated name (Chi-Yu, Ting-Lu, Chien-Pao, Ho-Oh, Porygon-Z, Wo-Chien)
+  var HYPHEN_BASES={"chi-yu":1,"ting-lu":1,"chien-pao":1,"wo-chien":1,"ho-oh":1,"porygon-z":1,"jangmo-o":1,"hakamo-o":1,"kommo-o":1};
+  var baseId=base.join("-"),baseName;
+  if(HYPHEN_BASES[baseId]) baseName=base.map(cap).join("-");
+  else baseName=base.map(cap).join(" ");
+  // Porygon2 / Porygon-Z style fixes
+  if(baseId==="porygon2")baseName="Porygon2";
+  return forms.length?baseName+"-"+forms.join("-"):baseName;
+}
+function buildRostersFromCSV(text){
+  var rows=parseCSV(text),out={};
+  for(var r=0;r<rows.length;r++){
+    var row=rows[r];
+    var colI=(row[8]||"").trim();   // I
+    var colJ=(row[9]||"").trim();   // J
+    var colK=(row[10]||"").trim();  // K
+    if(!colJ||!colK)continue;
+    if(colJ.indexOf("#N/A")>=0)continue;
+    if(colK==="Team"||colK==="Free Agent")continue;
+    if(!/^[a-z0-9%-]+$/.test(colJ))continue;
+    if(!out[colK])out[colK]=[];
+    if(!out[colK].some(function(e){return e[0]===colJ;})) out[colK].push([colJ,displayFromId(colJ,colI)]);
+  }
+  return out;
+}
+
+const PREFIX={alolan:"alola",alola:"alola",galarian:"galar",galar:"galar",hisuian:"hisui",hisui:"hisui",paldean:"paldea",paldea:"paldea",mega:"mega"};
+const FORM=new Set(["mega","x","y","alola","galar","hisui","paldea","therian","incarnate","origin","50","50%","wellspring","hearthflame","cornerstone","teal","dawn","dusk","wings","mane","crowned","ultra","zen","sky","heat","wash","mow","frost","fan","bloodmoon","primal","unbound","confined","blade","shield","aria","antique","gmax","f","m","striped","hero","core","complete","single","rapid","strike"]);
+function normId(s){
+  var raw=String(s).toLowerCase().trim().replace(/[\u2019']/g,"").replace(/[^a-z0-9%\s-]/g,"").replace(/[\s_]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"");
+  var t=raw.split("-");
+  if(t.length>1&&PREFIX[t[0]]){
+    var suf=PREFIX[t[0]],rest=t.slice(1);
+    if(rest.length>1&&(rest[rest.length-1]==="x"||rest[rest.length-1]==="y")){var tail=rest.pop();raw=rest.concat([suf,tail]).join("-");}
+    else raw=rest.concat([suf]).join("-");
+  }
+  return raw;
+}
+function baseOf(id){var p=normId(id).split("-");while(p.length>1&&FORM.has(p[p.length-1]))p.pop();return p.join("-");}
+function idx(c){return (ROSTERS[c]||[]).map(function(e){return {id:e[0],out:e[1],base:baseOf(e[0])};});}
+function resolveMon(coach,w){
+  var L=idx(coach),n=normId(w),h;
+  h=L.filter(function(e){return e.id===n;})[0]; if(h)return{out:h.out,status:"exact"};
+  h=L.filter(function(e){return normId(e.out)===n;})[0]; if(h)return{out:h.out,status:"exact"};
+  var b=baseOf(n),c=L.filter(function(e){return e.base===b;});
+  if(c.length===1)return{out:c[0].out,status:"corrected",from:w};
+  if(c.length>1)return{out:c[0].out,status:"ambiguous",from:w,options:c.map(function(x){return x.out;})};
+  return{out:w,status:"unmatched",from:w};
+}
+function scoreSeg(names,coach){return names.reduce(function(n,x){return n+(resolveMon(coach,x).status!=="unmatched"?1:0);},0);}
+function parseTeam(b){var re=/([^.]+?)\s+has\s+(\d+)\s+kills?\s+and\s+(\d+)\s+deaths?/gi,m,a=[];while((m=re.exec(b))!==null)a.push({name:m[1].trim(),k:m[2],d:m[3]});return a;}
+var wSel=document.getElementById('winner'),lSel=document.getElementById('loser');
+var srcEl=document.getElementById('src');
+function fillCoaches(){
+  var keepW=wSel.value,keepL=lSel.value;
+  wSel.innerHTML='';lSel.innerHTML='';
+  NAMES.forEach(function(n){var a=document.createElement('option');a.value=n;a.textContent=n;wSel.appendChild(a);var b=document.createElement('option');b.value=n;b.textContent=n;lSel.appendChild(b);});
+  if(NAMES.indexOf(keepW)>=0)wSel.value=keepW;else wSel.selectedIndex=0;
+  if(NAMES.indexOf(keepL)>=0)lSel.value=keepL;else lSel.selectedIndex=Math.min(1,NAMES.length-1);
+}
+fillCoaches();
+function setSrc(txt,cls){ if(srcEl){srcEl.textContent=txt;srcEl.className='src '+(cls||'');} }
+function loadLive(){
+  setSrc('Loading rosters from the sheet\u2026','');
+  var urls=csvUrls(),i=0;
+  function attempt(){
+    if(i>=urls.length){ setSrc('Could not reach the sheet \u2014 using the built-in roster snapshot. Check the sheet is shared as \u201cAnyone with the link\u201d.','warn'); return; }
+    fetch(urls[i],{cache:'no-store'})
+      .then(function(r){ if(!r.ok)throw new Error(r.status); return r.text(); })
+      .then(function(t){
+        var built=buildRostersFromCSV(t);
+        var n=Object.keys(built).length;
+        if(n<2)throw new Error('parsed '+n+' teams');
+        ROSTERS=built;NAMES=Object.keys(ROSTERS);fillCoaches();
+        var total=NAMES.reduce(function(s,k){return s+ROSTERS[k].length;},0);
+        setSrc('Rosters live from the sheet \u2014 '+NAMES.length+' coaches, '+total+' Pok\u00e9mon. Updated '+new Date().toLocaleTimeString()+'.','ok');
+      })
+      .catch(function(){ i++; attempt(); });
+  }
+  attempt();
+}
+loadLive();
+var rb=document.getElementById('refresh');
+if(rb)rb.addEventListener('click',function(){ loadLive(); });
+var status=document.getElementById('status'),outwrap=document.getElementById('outwrap'),output=document.getElementById('output'),notesEl=document.getElementById('notes');
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function convert(){
+  status.style.color='var(--muted)';status.textContent='';notesEl.innerHTML='';
+  var text=document.getElementById('input').value,winner=wSel.value,loser=lSel.value;
+  if(winner===loser){status.style.color='var(--danger)';status.textContent='Winner and loser must differ.';return;}
+  if(!text.trim()){status.style.color='var(--danger)';status.textContent='Paste the Wiglett output first.';return;}
+  var sM=text.match(/won\s+(\d+)\s*-\s*\d+/i),score=sM?sM[1]:'?';
+  var uM=text.match(/https?:\/\/[^\s]+/),url=uM?uM[0].replace(/[).,]+$/,''):'';
+  var body=text,ri=body.search(/Result:/i);if(ri>=0)body=body.slice(ri+7);
+  var pi=body.search(/Replay:/i);if(pi>=0)body=body.slice(0,pi);
+  body=body.replace(/^[\s\S]*?won\s+\d+\s*-\s*\d+/i,'');
+  var aRe=/(?:^|\s)([^\s:]+):\s+[A-Za-z0-9'.\u2019-]/g,anchors=[],am;
+  while((am=aRe.exec(body))!==null){var cp=body.indexOf(':',am.index);anchors.push({labelEnd:cp+1,matchStart:am.index});}
+  var segs=[];
+  for(var i=0;i<anchors.length;i++){
+    var s=anchors[i].labelEnd,e=(i+1<anchors.length)?anchors[i+1].matchStart:body.length,sg=body.slice(s,e);
+    if(/has\s+\d+\s+kills?/i.test(sg))segs.push(parseTeam(sg));
+  }
+  if(segs.length<2){status.style.color='var(--danger)';status.textContent='Could not find two teams — check the pasted text.';return;}
+  var A=segs[0],B=segs[1];
+  var nA=A.map(function(x){return x.name;}),nB=B.map(function(x){return x.name;});
+  var optX=scoreSeg(nA,winner)+scoreSeg(nB,loser),optY=scoreSeg(nA,loser)+scoreSeg(nB,winner);
+  var wT=optX>=optY?A:B,lT=optX>=optY?B:A,notes=[];
+  function build(team,coach){
+    return team.slice().reverse().map(function(e){
+      var r=resolveMon(coach,e.name);
+      if(r.status==="corrected")notes.push({t:"fix",m:coach+": "+r.from+" → "+r.out});
+      if(r.status==="ambiguous")notes.push({t:"warn",m:coach+": "+r.from+" is ambiguous ("+r.options.join(" / ")+") — used "+r.out});
+      if(r.status==="unmatched")notes.push({t:"warn",m:coach+": "+r.from+" isn't on their roster — kept as-is"});
+      return e.k+e.d+r.out;
+    });
+  }
+  var tw=build(wT,winner),tl=build(lT,loser);
+  output.textContent=['match',winner,loser,score,url].concat(tw).concat(tl).join(',');
+  outwrap.style.display='block';
+  status.textContent='Done — '+tw.length+' + '+tl.length+' Pokémon.';
+  if(notes.length){
+    var fx=notes.filter(function(n){return n.t==="fix";}),wn=notes.filter(function(n){return n.t==="warn";}),h='';
+    if(fx.length){h+='<p class="h" style="color:var(--ok)">Roster corrections</p>';fx.forEach(function(n){h+='<div style="color:var(--muted)">'+esc(n.m)+'</div>';});}
+    if(wn.length){h+='<p class="h" style="color:var(--danger);margin-top:10px">Check these</p>';wn.forEach(function(n){h+='<div style="color:var(--danger)">'+esc(n.m)+'</div>';});}
+    notesEl.innerHTML=h;
+  }
+}
+document.getElementById('convert').addEventListener('click',convert);
+document.getElementById('copy').addEventListener('click',function(){
+  navigator.clipboard&&navigator.clipboard.writeText(output.textContent);
+  var b=this;b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1500);
+});
+})();
+</script>
+</body>
+</html>
