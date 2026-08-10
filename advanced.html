@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Stat Updates</title>
+<style>
+  :root{--orange:#E08A3C;--orange-dark:#C9762C;--text:#2c2c2a;--muted:#6b6a64;--border:#dcdad2;--surface:#faf9f5;--card:#fff;--danger:#a32d2d;--ok:#3f6b4a;}
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:#f0efe9;margin:0;padding:24px 16px;line-height:1.6;}
+  .wrap{max-width:920px;margin:0 auto;}
+  .header{background:var(--orange);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+  .header h1{margin:0;font-size:22px;font-weight:600;color:#4A2A0C;}
+  .header p{margin:8px 0 0;font-size:14px;color:#5E3612;}
+  .header a.back{display:inline-block;margin-top:10px;font-size:12.5px;color:#4A2A0C;text-decoration:underline;}
+  .howto{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+  .howto p.label{margin:0 0 14px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+  .step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;}
+  .step:last-child{margin-bottom:0;}
+  .step .num{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange);color:#4A2A0C;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .step .txt{font-size:14px;line-height:1.5;padding-top:2px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;}
+  textarea,input[type=file]{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;}
+  textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;resize:vertical;min-height:140px;}
+  textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(224,138,60,.2);}
+  .field{margin-bottom:16px;}
+  .actions{display:flex;gap:10px;align-items:center;margin:14px 0 4px;flex-wrap:wrap;}
+  button.primary{background:var(--orange);border:none;color:#4A2A0C;font-weight:600;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;}
+  button.primary:hover:not(:disabled){background:var(--orange-dark);}
+  button.primary:disabled{opacity:.5;cursor:not-allowed;}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;}
+  button.ghost:hover{background:var(--surface);}
+  #status{font-size:13px;color:var(--muted);}
+  #resultswrap{display:none;}
+  #summaryline{font-size:13px;color:var(--muted);margin-bottom:12px;}
+  .tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;}
+  table{border-collapse:collapse;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;}
+  th,td{padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;}
+  th{background:var(--surface);position:sticky;top:0;font-weight:600;}
+  tr:hover td{background:var(--surface);}
+  #panelwrap{display:none;margin-top:14px;font-size:13px;line-height:1.7;}
+  #panelwrap .h{font-weight:600;margin:0 0 4px;}
+  #panelwrap .warn{color:var(--danger);}
+  #panelwrap .info{color:var(--muted);}
+  .foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Advanced Stat Updates <span style="font-weight:400;font-size:15px;">(for Charu)</span></h1>
+    <p>Parse full Pokemon Showdown replays into per-Pok&eacute;mon battle stats &mdash; damage, crits, KOs, hazards, and more &mdash; ready to paste into a spreadsheet.</p>
+    <a class="back" href="index.html">&larr; Back to Replay converter</a>
+  </div>
+  <div class="howto">
+    <p class="label">How to use</p>
+    <div class="step"><div class="num">1</div><div class="txt">Paste replay URLs below (one per line), and/or choose replay files to upload.</div></div>
+    <div class="step"><div class="num">2</div><div class="txt">Click <strong>Parse</strong>. The first parse on this page takes a few seconds while the Python engine loads.</div></div>
+    <div class="step"><div class="num">3</div><div class="txt">Copy the table as TSV and paste it into your sheet, or download it as a CSV file.</div></div>
+  </div>
+  <div class="card">
+    <div class="field">
+      <label for="urls">Paste replay URLs (one per line)</label>
+      <textarea id="urls" placeholder="https://replay.pokemonshowdown.com/gen9ou-1234567890&#10;https://replay.pokemonshowdown.com/gen9draft-2496872922&#10;# lines starting with # are ignored"></textarea>
+    </div>
+    <div class="field">
+      <label for="files">Or upload replay files (.log, .txt, .json)</label>
+      <input type="file" id="files" multiple accept=".log,.txt,.json">
+    </div>
+    <div class="actions">
+      <button class="primary" id="parseBtn" disabled>Parse</button>
+      <span id="status">Loading Python runtime&hellip;</span>
+    </div>
+  </div>
+  <div id="resultswrap">
+    <div class="card">
+      <div id="summaryline"></div>
+      <div class="tablewrap"><table id="resultsTable"></table></div>
+      <div class="actions">
+        <button class="ghost" id="copyBtn">Copy as TSV</button>
+        <button class="ghost" id="downloadBtn">Download CSV</button>
+      </div>
+      <div id="panelwrap"></div>
+    </div>
+  </div>
+  <div class="foot">Pok&eacute;mon replay stat parser &mdash; runs entirely in your browser</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.4/full/pyodide.js"></script>
+<script>
+(function(){
+"use strict";
+
+// ---- JS port of showdown_stats/fetcher.py's URL/text handling -----------
+
+function normalizeReplayUrl(rawUrl){
+  let parsed;
+  try{ parsed = new URL(rawUrl); }catch(e){ return rawUrl; }
+  const host=(parsed.hostname||"").toLowerCase();
+  if(host.endsWith("google.com") && parsed.pathname==="/url"){
+    const q=parsed.searchParams.get("q")||parsed.searchParams.get("url");
+    if(q) return normalizeReplayUrl(q.trim());
+  }
+  if(host.endsWith("pokemonshowdown.com")){
+    const cleanedPath=parsed.pathname.replace(/\/+$/,"");
+    return parsed.protocol+"//"+parsed.host+cleanedPath;
+  }
+  return rawUrl;
+}
+
+function battleIdFromUrl(url){
+  let parsed;
+  try{ parsed=new URL(url); }catch(e){ return "unknown-battle"; }
+  const path=parsed.pathname.replace(/\/+$/,"");
+  const parts=path.split("/");
+  let stem=parts[parts.length-1]||"";
+  if(stem.endsWith(".json")||stem.endsWith(".log")) stem=stem.replace(/\.(json|log)$/,"");
+  return stem||"unknown-battle";
+}
+
+function candidateUrls(url){
+  const cleaned=url.replace(/\/+$/,"");
+  let base;
+  if(cleaned.endsWith(".json")||cleaned.endsWith(".log")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
+  else base=cleaned;
+  return [base+".json", base+".log", cleaned];
+}
+
+function looksLikeHtml(text){
+  const snippet=text.slice(0,500).toLowerCase();
+  return /<(html|!doctype|head|body)\b/.test(snippet);
+}
+
+function looksLikeProtocolLog(text){
+  return text.split(/\r\n|\r|\n/).some(function(line){ return line.startsWith("|"); });
+}
+
+async function fetchReplayFromUrl(rawUrl){
+  const url=normalizeReplayUrl(rawUrl.trim());
+  const battleId=battleIdFromUrl(url);
+  const candidates=candidateUrls(url);
+  let lastError=null;
+  for(const candidate of candidates){
+    try{
+      const resp=await fetch(candidate,{cache:"no-store"});
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      const contentType=(resp.headers.get("content-type")||"").toLowerCase();
+      const body=await resp.text();
+      if(candidate.endsWith(".json")||contentType.startsWith("application/json")){
+        let payload;
+        try{ payload=JSON.parse(body); }catch(e){ throw new Error("Invalid JSON replay payload"); }
+        const log=payload.log||"";
+        if(!log) throw new Error("No 'log' field found in JSON replay payload from "+candidate);
+        const metadata={uploadtime:payload.uploadtime,format:payload.format,id:payload.id||battleId};
+        return {identifier:String(metadata.id||battleId),content:log,replayUrl:url,metadata:metadata};
+      }
+      if(looksLikeHtml(body)) throw new Error("Expected a replay log but received HTML from "+candidate+". Use the direct replay URL, such as https://replay.pokemonshowdown.com/<battle-id>.");
+      if(!looksLikeProtocolLog(body)) throw new Error("Response from "+candidate+" did not look like a Pokemon Showdown protocol log.");
+      return {identifier:battleId,content:body,replayUrl:url,metadata:{}};
+    }catch(e){
+      lastError=e;
+    }
+  }
+  throw new Error("Unable to fetch replay log from "+url+": "+lastError);
+}
+
+function parseEntriesFromText(text){
+  const urls=[]; const seen=new Set(); const skipped=[];
+  const urlPattern=/https?:\/\/[^\s]+/ig;
+  const lines=text.split(/\r\n|\r|\n/);
+  for(const rawLine of lines){
+    const line=rawLine.trim();
+    if(!line||line.startsWith("#")) continue;
+    const matches=line.match(urlPattern);
+    if(matches){
+      for(let u of matches){
+        u=u.replace(/[.,);\]]+$/,"");
+        u=normalizeReplayUrl(u);
+        if(!seen.has(u)){ urls.push(u); seen.add(u); }
+      }
+      continue;
+    }
+    skipped.push(line);
+  }
+  return {urls:urls, skipped:skipped};
+}
+
+async function readReplayFile(file){
+  const text=await file.text();
+  const stem=file.name.replace(/\.(json|log|txt)$/i,"");
+  if(/\.json$/i.test(file.name)){
+    let payload=null;
+    try{ payload=JSON.parse(text); }catch(e){ payload=null; }
+    if(payload && typeof payload==="object" && "log" in payload){
+      const metadata={uploadtime:payload.uploadtime,format:payload.format,id:payload.id||stem};
+      return {identifier:String(metadata.id||stem),content:String(payload.log),replayUrl:"",metadata:metadata};
+    }
+  }
+  return {identifier:stem,content:text,replayUrl:"",metadata:{}};
+}
+
+// ---- Pyodide bootstrap ----------------------------------------------------
+
+const VENDORED_FILES=["__init__.py","fetcher.py","models.py","parser.py","exporter.py"];
+let browserApi=null;
+let pyodideReadyPromise=null;
+
+async function bootstrapPyodide(setStatus){
+  setStatus("Loading Python runtime…");
+  const pyodide=await loadPyodide({indexURL:"https://cdn.jsdelivr.net/pyodide/v314.0.4/full/"});
+
+  setStatus("Loading replay parser…");
+  pyodide.FS.mkdirTree("/showdown_stats");
+  for(const name of VENDORED_FILES){
+    const resp=await fetch("showdown_stats/"+name);
+    if(!resp.ok) throw new Error("Failed to fetch showdown_stats/"+name+": HTTP "+resp.status);
+    pyodide.FS.writeFile("/showdown_stats/"+name, await resp.text());
+  }
+  const apiResp=await fetch("web/browser_api.py");
+  if(!apiResp.ok) throw new Error("Failed to fetch web/browser_api.py: HTTP "+apiResp.status);
+  pyodide.FS.writeFile("/browser_api.py", await apiResp.text());
+
+  pyodide.runPython('import sys\nif "/" not in sys.path:\n    sys.path.insert(0, "/")');
+  const api=pyodide.pyimport("browser_api");
+
+  setStatus("Ready.");
+  return api;
+}
+
+// ---- UI wiring --------------------------------------------------------
+
+const statusEl=document.getElementById("status");
+const parseBtn=document.getElementById("parseBtn");
+const urlsEl=document.getElementById("urls");
+const filesEl=document.getElementById("files");
+const resultswrap=document.getElementById("resultswrap");
+const summaryline=document.getElementById("summaryline");
+const tableEl=document.getElementById("resultsTable");
+const panelwrap=document.getElementById("panelwrap");
+const copyBtn=document.getElementById("copyBtn");
+const downloadBtn=document.getElementById("downloadBtn");
+
+function setStatus(text){ statusEl.textContent=text; }
+
+function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+
+let currentColumns=[];
+let currentRows=[];
+
+function renderResults(columns, rows, meta){
+  currentColumns=columns;
+  currentRows=rows;
+  const parsedCount=meta.parsedCount, rowCount=rows.length, warnCount=meta.warnings.length, errCount=meta.errors.length;
+  summaryline.textContent="Parsed "+parsedCount+" replay(s) → "+rowCount+" Pokémon rows, "+warnCount+" warning(s), "+errCount+" error(s).";
+
+  let thead="<thead><tr>"+columns.map(function(c){return "<th>"+esc(c)+"</th>";}).join("")+"</tr></thead>";
+  let tbody="<tbody>"+rows.map(function(row){
+    return "<tr>"+columns.map(function(c){return "<td>"+esc(row[c]===undefined||row[c]===null?"":row[c])+"</td>";}).join("")+"</tr>";
+  }).join("")+"</tbody>";
+  tableEl.innerHTML=thead+tbody;
+
+  let panelHtml="";
+  if(meta.errors.length){
+    panelHtml+='<p class="h warn">Errors</p>';
+    meta.errors.forEach(function(e){ panelHtml+='<div class="warn">['+esc(e.id)+"] "+esc(e.message)+"</div>"; });
+  }
+  if(meta.warnings.length){
+    panelHtml+='<p class="h warn" style="margin-top:10px">Warnings</p>';
+    meta.warnings.forEach(function(w){ panelHtml+='<div class="info">['+esc(w.id)+"] "+esc(w.message)+"</div>"; });
+  }
+  panelwrap.innerHTML=panelHtml;
+  panelwrap.style.display=panelHtml?"block":"none";
+
+  resultswrap.style.display="block";
+}
+
+function buildTsv(columns, rows){
+  const lines=[columns.join("\t")];
+  rows.forEach(function(row){
+    lines.push(columns.map(function(c){ return row[c]===undefined||row[c]===null?"":String(row[c]).replace(/\t/g," ").replace(/\n/g," "); }).join("\t"));
+  });
+  return lines.join("\n");
+}
+
+function csvCell(value){
+  const s=value===undefined||value===null?"":String(value);
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+
+function buildCsv(columns, rows){
+  const lines=[columns.map(csvCell).join(",")];
+  rows.forEach(function(row){
+    lines.push(columns.map(function(c){ return csvCell(row[c]); }).join(","));
+  });
+  return lines.join("\r\n");
+}
+
+copyBtn.addEventListener("click", function(){
+  if(!currentRows.length) return;
+  const tsv=buildTsv(currentColumns, currentRows);
+  navigator.clipboard && navigator.clipboard.writeText(tsv);
+  const b=copyBtn; const orig=b.textContent;
+  b.textContent="Copied"; setTimeout(function(){ b.textContent=orig; }, 1500);
+});
+
+downloadBtn.addEventListener("click", function(){
+  if(!currentRows.length) return;
+  const csv=buildCsv(currentColumns, currentRows);
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="pokemon_stats.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+async function handleParse(){
+  parseBtn.disabled=true;
+  resultswrap.style.display="none";
+  panelwrap.style.display="none";
+
+  const {urls, skipped}=parseEntriesFromText(urlsEl.value);
+  const fileList=Array.from(filesEl.files||[]);
+
+  if(!urls.length && !fileList.length){
+    setStatus("Paste at least one replay URL or choose a file first.");
+    parseBtn.disabled=false;
+    return;
+  }
+
+  const inputs=[];
+  const errors=[];
+  skipped.forEach(function(line){
+    errors.push({id:line.slice(0,40), message:"local file paths can't be read from pasted text in a browser — use the file upload control instead."});
+  });
+
+  setStatus("Fetching replays…");
+  for(const url of urls){
+    try{
+      const input=await fetchReplayFromUrl(url);
+      inputs.push(input);
+    }catch(e){
+      errors.push({id:battleIdFromUrl(normalizeReplayUrl(url)), message:String(e.message||e)});
+    }
+  }
+  for(const file of fileList){
+    try{
+      const input=await readReplayFile(file);
+      inputs.push(input);
+    }catch(e){
+      errors.push({id:file.name, message:String(e.message||e)});
+    }
+  }
+
+  const allRows=[];
+  const warnings=[];
+  let columns=null;
+  let parsedCount=0;
+
+  for(let i=0;i<inputs.length;i++){
+    const input=inputs[i];
+    setStatus("Parsing "+(i+1)+" of "+inputs.length+"…");
+    await new Promise(function(r){ setTimeout(r,0); });
+    let resultJson;
+    try{
+      resultJson=browserApi.parse_replay(input.content, input.identifier, input.replayUrl||"", JSON.stringify(input.metadata||{}));
+    }catch(e){
+      errors.push({id:input.identifier, message:String(e.message||e)});
+      continue;
+    }
+    const result=JSON.parse(resultJson);
+    if(result.error){
+      errors.push({id:result.battle_id||input.identifier, message:result.error});
+      continue;
+    }
+    parsedCount+=1;
+    (result.warnings||[]).forEach(function(w){ warnings.push({id:result.battle_id, message:w}); });
+    (result.pokemon_rows||[]).forEach(function(row){
+      if(!columns) columns=Object.keys(row);
+      allRows.push(row);
+    });
+  }
+
+  if(!columns) columns=[];
+  renderResults(columns, allRows, {parsedCount:parsedCount, warnings:warnings, errors:errors});
+  setStatus("Done.");
+  parseBtn.disabled=false;
+}
+
+parseBtn.addEventListener("click", function(){ handleParse(); });
+
+pyodideReadyPromise=bootstrapPyodide(setStatus).then(function(api){
+  browserApi=api;
+  parseBtn.disabled=false;
+}).catch(function(e){
+  setStatus("Failed to load Python runtime: "+(e.message||e));
+});
+
+})();
+</script>
+</body>
+</html>
