@@ -32,9 +32,9 @@ class ReplayFetcherTests(unittest.TestCase):
         self.assertEqual(
             ReplayFetcher._candidate_urls(url),
             [
+                url,
                 "https://champsnatdex.dedyn.io/replays/gen9natdexchampionsdraft/26419_Charuzar_vs_caliber14.json",
                 "https://champsnatdex.dedyn.io/replays/gen9natdexchampionsdraft/26419_Charuzar_vs_caliber14.log",
-                url,
             ],
         )
 

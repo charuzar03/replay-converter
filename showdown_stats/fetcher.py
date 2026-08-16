@@ -186,7 +186,14 @@ class ReplayFetcher:
     @classmethod
     def _candidate_urls(cls, url: str) -> List[str]:
         cleaned = url.rstrip("/")
-        if cleaned.endswith(".json") or cleaned.endswith(".log") or cleaned.endswith(".html"):
+        if cleaned.endswith(".html"):
+            base = cleaned.rsplit(".", 1)[0]
+            return [
+                cleaned,
+                f"{base}.json",
+                f"{base}.log",
+            ]
+        if cleaned.endswith(".json") or cleaned.endswith(".log"):
             base = cleaned.rsplit(".", 1)[0]
         else:
             base = cleaned

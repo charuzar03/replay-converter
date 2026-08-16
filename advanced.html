@@ -122,7 +122,11 @@ function battleIdFromUrl(url){
 function candidateUrls(url){
   const cleaned=url.replace(/\/+$/,"");
   let base;
-  if(cleaned.endsWith(".json")||cleaned.endsWith(".log")||cleaned.endsWith(".html")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
+  if(cleaned.endsWith(".html")){
+    base=cleaned.slice(0,cleaned.lastIndexOf("."));
+    return [cleaned, base+".json", base+".log"];
+  }
+  if(cleaned.endsWith(".json")||cleaned.endsWith(".log")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
   else base=cleaned;
   return [base+".json", base+".log", cleaned];
 }
@@ -150,8 +154,17 @@ function extractProtocolLogFromHtml(text){
 }
 
 async function fetchText(candidate){
+  async function fetchWithTimeout(url, timeoutMs){
+    const controller=new AbortController();
+    const timer=setTimeout(function(){ controller.abort(); }, timeoutMs);
+    try{
+      return await fetch(url,{cache:"no-store",signal:controller.signal});
+    }finally{
+      clearTimeout(timer);
+    }
+  }
   try{
-    const resp=await fetch(candidate,{cache:"no-store"});
+    const resp=await fetchWithTimeout(candidate, 8000);
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
   }catch(e){
@@ -163,7 +176,7 @@ async function fetchText(candidate){
     ];
     for(const proxy of proxies){
       try{
-        const resp=await fetch(proxy,{cache:"no-store"});
+        const resp=await fetchWithTimeout(proxy, 8000);
         if(!resp.ok) throw new Error("HTTP "+resp.status+" via CORS fallback");
         return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
       }catch(proxyError){
