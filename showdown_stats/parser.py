@@ -1451,8 +1451,12 @@ class BattleParser:
     def _normalize_species_name(species: str) -> str:
         species = species.strip()
         if species.endswith("-Tera"):
-            return species[: -len("-Tera")]
-        return species
+            species = species[: -len("-Tera")]
+        aliases = {
+            "Gastrodon-East": "Gastrodon",
+            "Zarude-Dada": "Zarude",
+        }
+        return aliases.get(species, species)
 
     @staticmethod
     def _extract_species_from_args(args: List[str]) -> str:

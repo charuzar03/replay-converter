@@ -318,6 +318,26 @@ class BattleParserTests(unittest.TestCase):
         ivy = self.find_row(result, "Ivy")
         self.assertEqual(ivy.species, "Ogerpon-Teal")
 
+    def test_selected_form_aliases_are_normalized_to_base_species(self):
+        result = self.parse_battle(
+            """
+|player|p1|Alice|
+|player|p2|Bob|
+|poke|p1|Gastrodon-East, F|
+|poke|p2|Zarude-Dada|
+|switch|p1a: Slug|Gastrodon-East, F|100/100
+|switch|p2a: Vine|Zarude-Dada|100/100
+|turn|1
+|move|p1a: Slug|Earth Power|p2a: Vine
+|-damage|p2a: Vine|70/100
+|win|Alice
+            """
+        )
+        slug = self.find_row(result, "Slug")
+        vine = self.find_row(result, "Vine")
+        self.assertEqual(slug.species, "Gastrodon")
+        self.assertEqual(vine.species, "Zarude")
+
     def test_mega_evolution_updates_species_for_summary(self):
         result = self.parse_battle(
             """
