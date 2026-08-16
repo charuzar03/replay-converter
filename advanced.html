@@ -123,8 +123,7 @@ function candidateUrls(url){
   const cleaned=url.replace(/\/+$/,"");
   let base;
   if(cleaned.endsWith(".html")){
-    base=cleaned.slice(0,cleaned.lastIndexOf("."));
-    return [cleaned, base+".json", base+".log"];
+    return [cleaned];
   }
   if(cleaned.endsWith(".json")||cleaned.endsWith(".log")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
   else base=cleaned;
@@ -164,13 +163,15 @@ async function fetchText(candidate){
     }
   }
   try{
-    const resp=await fetchWithTimeout(candidate, 8000);
+    const resp=await fetchWithTimeout(candidate, 3000);
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
   }catch(e){
-    if(!(e instanceof TypeError)) throw e;
+    const canTryCorsFallback = e instanceof TypeError || e.name === "AbortError";
+    if(!canTryCorsFallback) throw e;
     let lastError=e;
     const proxies=[
+      "https://api.cors.syrins.tech/?url="+encodeURIComponent(candidate),
       "https://api.cors.lol/?url="+encodeURIComponent(candidate),
       "https://api.allorigins.win/raw?url="+encodeURIComponent(candidate)
     ];
