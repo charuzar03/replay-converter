@@ -26,6 +26,18 @@ class ReplayFetcherTests(unittest.TestCase):
             "https://replay.pokemonshowdown.com/gen9draft-2270209672-h4ethbcxe69cw4zceiadoiulvtjbtf7pw",
         )
 
+    def test_html_urls_use_clean_battle_id_and_candidate_urls(self):
+        url = "https://champsnatdex.dedyn.io/replays/gen9natdexchampionsdraft/26419_Charuzar_vs_caliber14.html"
+        self.assertEqual(ReplayFetcher._battle_id_from_url(url), "26419_Charuzar_vs_caliber14")
+        self.assertEqual(
+            ReplayFetcher._candidate_urls(url),
+            [
+                "https://champsnatdex.dedyn.io/replays/gen9natdexchampionsdraft/26419_Charuzar_vs_caliber14.json",
+                "https://champsnatdex.dedyn.io/replays/gen9natdexchampionsdraft/26419_Charuzar_vs_caliber14.log",
+                url,
+            ],
+        )
+
     def test_html_detection(self):
         self.assertTrue(ReplayFetcher._looks_like_html("<html><head></head><body>Hello</body></html>"))
         self.assertFalse(ReplayFetcher._looks_like_html("|turn|1\n|win|Alice"))
@@ -33,6 +45,21 @@ class ReplayFetcherTests(unittest.TestCase):
     def test_protocol_detection(self):
         self.assertTrue(ReplayFetcher._looks_like_protocol_log("|player|p1|Alice|"))
         self.assertFalse(ReplayFetcher._looks_like_protocol_log("not a replay log"))
+
+    def test_extracts_protocol_log_from_replay_html(self):
+        html = """
+<!DOCTYPE html>
+<div class="battle"></div>
+<script type="text/plain" class="battle-log-data">|player|p1|Charuzar|
+|player|p2|caliber14|
+|turn|1
+|win|Charuzar</script>
+        """
+        log = ReplayFetcher._extract_protocol_log_from_html(html)
+        self.assertEqual(
+            log,
+            "|player|p1|Charuzar|\n|player|p2|caliber14|\n|turn|1\n|win|Charuzar",
+        )
 
     def test_parse_entries_from_text_with_multiple_links(self):
         text = """

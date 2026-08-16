@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from html import unescape
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -58,10 +59,10 @@ class ReplayFetcher:
                         metadata=metadata,
                     )
                 if self._looks_like_html(body):
-                    raise ValueError(
-                        f"Expected a replay log but received HTML from {candidate}. "
-                        "Use the direct replay URL, such as https://replay.pokemonshowdown.com/<battle-id>."
-                    )
+                    log = self._extract_protocol_log_from_html(body)
+                    if log:
+                        return ReplayInput(identifier=battle_id, content=log, replay_url=url, metadata={})
+                    raise ValueError(f"HTML replay page from {candidate} did not contain embedded battle log data.")
                 if not self._looks_like_protocol_log(body):
                     raise ValueError(
                         f"Response from {candidate} did not look like a Pokemon Showdown protocol log."
@@ -86,6 +87,10 @@ class ReplayFetcher:
                     "id": payload.get("id") or file_path.stem,
                 }
                 content = str(payload["log"])
+        elif self._looks_like_html(content):
+            log = self._extract_protocol_log_from_html(content)
+            if log:
+                content = log
 
         return ReplayInput(
             identifier=str(metadata.get("id") or file_path.stem),
@@ -95,7 +100,7 @@ class ReplayFetcher:
         )
 
     def load_folder(self, folder: str) -> List[ReplayInput]:
-        supported = {".log", ".txt", ".json"}
+        supported = {".log", ".txt", ".json", ".html"}
         results: List[ReplayInput] = []
         for path in sorted(Path(folder).iterdir()):
             if path.is_file() and path.suffix.lower() in supported:
@@ -160,7 +165,7 @@ class ReplayFetcher:
     def _battle_id_from_url(url: str) -> str:
         parsed = urlparse(url)
         stem = parsed.path.rstrip("/").split("/")[-1]
-        if stem.endswith(".json") or stem.endswith(".log"):
+        if stem.endswith(".json") or stem.endswith(".log") or stem.endswith(".html"):
             stem = os.path.splitext(stem)[0]
         return stem or "unknown-battle"
 
@@ -181,7 +186,7 @@ class ReplayFetcher:
     @classmethod
     def _candidate_urls(cls, url: str) -> List[str]:
         cleaned = url.rstrip("/")
-        if cleaned.endswith(".json") or cleaned.endswith(".log"):
+        if cleaned.endswith(".json") or cleaned.endswith(".log") or cleaned.endswith(".html"):
             base = cleaned.rsplit(".", 1)[0]
         else:
             base = cleaned
@@ -213,3 +218,15 @@ class ReplayFetcher:
     def _looks_like_html(text: str) -> bool:
         snippet = text[:500].lower()
         return bool(re.search(r"<(html|!doctype|head|body)\b", snippet))
+
+    @staticmethod
+    def _extract_protocol_log_from_html(text: str) -> str:
+        match = re.search(
+            r"<script\b(?=[^>]*\bclass=[\"'][^\"']*\bbattle-log-data\b[^\"']*[\"'])[^>]*>(.*?)</script>",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not match:
+            return ""
+        log = unescape(match.group(1)).strip()
+        return log if ReplayFetcher._looks_like_protocol_log(log) else ""

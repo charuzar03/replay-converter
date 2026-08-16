@@ -65,8 +65,8 @@
       <textarea id="urls" placeholder="https://replay.pokemonshowdown.com/gen9ou-1234567890&#10;https://replay.pokemonshowdown.com/gen9draft-2496872922&#10;# lines starting with # are ignored"></textarea>
     </div>
     <div class="field">
-      <label for="files">Or upload replay files (.log, .txt, .json)</label>
-      <input type="file" id="files" multiple accept=".log,.txt,.json">
+      <label for="files">Or upload replay files (.log, .txt, .json, .html)</label>
+      <input type="file" id="files" multiple accept=".log,.txt,.json,.html">
     </div>
     <div class="actions">
       <button class="primary" id="parseBtn" disabled>Parse</button>
@@ -115,14 +115,14 @@ function battleIdFromUrl(url){
   const path=parsed.pathname.replace(/\/+$/,"");
   const parts=path.split("/");
   let stem=parts[parts.length-1]||"";
-  if(stem.endsWith(".json")||stem.endsWith(".log")) stem=stem.replace(/\.(json|log)$/,"");
+  if(stem.endsWith(".json")||stem.endsWith(".log")||stem.endsWith(".html")) stem=stem.replace(/\.(json|log|html)$/,"");
   return stem||"unknown-battle";
 }
 
 function candidateUrls(url){
   const cleaned=url.replace(/\/+$/,"");
   let base;
-  if(cleaned.endsWith(".json")||cleaned.endsWith(".log")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
+  if(cleaned.endsWith(".json")||cleaned.endsWith(".log")||cleaned.endsWith(".html")) base=cleaned.slice(0,cleaned.lastIndexOf("."));
   else base=cleaned;
   return [base+".json", base+".log", cleaned];
 }
@@ -136,6 +136,44 @@ function looksLikeProtocolLog(text){
   return text.split(/\r\n|\r|\n/).some(function(line){ return line.startsWith("|"); });
 }
 
+function decodeHtmlEntities(text){
+  const textarea=document.createElement("textarea");
+  textarea.innerHTML=text;
+  return textarea.value;
+}
+
+function extractProtocolLogFromHtml(text){
+  const match=text.match(/<script\b(?=[^>]*\bclass=["'][^"']*\bbattle-log-data\b[^"']*["'])[^>]*>([\s\S]*?)<\/script>/i);
+  if(!match) return "";
+  const log=decodeHtmlEntities(match[1]).trim();
+  return looksLikeProtocolLog(log)?log:"";
+}
+
+async function fetchText(candidate){
+  try{
+    const resp=await fetch(candidate,{cache:"no-store"});
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
+  }catch(e){
+    if(!(e instanceof TypeError)) throw e;
+    let lastError=e;
+    const proxies=[
+      "https://api.cors.lol/?url="+encodeURIComponent(candidate),
+      "https://api.allorigins.win/raw?url="+encodeURIComponent(candidate)
+    ];
+    for(const proxy of proxies){
+      try{
+        const resp=await fetch(proxy,{cache:"no-store"});
+        if(!resp.ok) throw new Error("HTTP "+resp.status+" via CORS fallback");
+        return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
+      }catch(proxyError){
+        lastError=proxyError;
+      }
+    }
+    throw lastError;
+  }
+}
+
 async function fetchReplayFromUrl(rawUrl){
   const url=normalizeReplayUrl(rawUrl.trim());
   const battleId=battleIdFromUrl(url);
@@ -143,10 +181,9 @@ async function fetchReplayFromUrl(rawUrl){
   let lastError=null;
   for(const candidate of candidates){
     try{
-      const resp=await fetch(candidate,{cache:"no-store"});
-      if(!resp.ok) throw new Error("HTTP "+resp.status);
-      const contentType=(resp.headers.get("content-type")||"").toLowerCase();
-      const body=await resp.text();
+      const fetched=await fetchText(candidate);
+      const contentType=fetched.contentType;
+      const body=fetched.body;
       if(candidate.endsWith(".json")||contentType.startsWith("application/json")){
         let payload;
         try{ payload=JSON.parse(body); }catch(e){ throw new Error("Invalid JSON replay payload"); }
@@ -155,7 +192,11 @@ async function fetchReplayFromUrl(rawUrl){
         const metadata={uploadtime:payload.uploadtime,format:payload.format,id:payload.id||battleId};
         return {identifier:String(metadata.id||battleId),content:log,replayUrl:url,metadata:metadata};
       }
-      if(looksLikeHtml(body)) throw new Error("Expected a replay log but received HTML from "+candidate+". Use the direct replay URL, such as https://replay.pokemonshowdown.com/<battle-id>.");
+      if(looksLikeHtml(body)){
+        const log=extractProtocolLogFromHtml(body);
+        if(log) return {identifier:battleId,content:log,replayUrl:url,metadata:{}};
+        throw new Error("HTML replay page from "+candidate+" did not contain embedded battle log data.");
+      }
       if(!looksLikeProtocolLog(body)) throw new Error("Response from "+candidate+" did not look like a Pokemon Showdown protocol log.");
       return {identifier:battleId,content:body,replayUrl:url,metadata:{}};
     }catch(e){
@@ -196,6 +237,10 @@ async function readReplayFile(file){
       const metadata={uploadtime:payload.uploadtime,format:payload.format,id:payload.id||stem};
       return {identifier:String(metadata.id||stem),content:String(payload.log),replayUrl:"",metadata:metadata};
     }
+  }
+  if(looksLikeHtml(text)){
+    const log=extractProtocolLogFromHtml(text);
+    if(log) return {identifier:stem,content:log,replayUrl:"",metadata:{}};
   }
   return {identifier:stem,content:text,replayUrl:"",metadata:{}};
 }
