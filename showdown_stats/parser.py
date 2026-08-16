@@ -492,8 +492,10 @@ class BattleParser:
         status = args[1]
         source_id, cause, cause_detail = self._infer_status_source(mon_id, status, args[2:])
         mon.current_status = status
-        mon.summary.add_counter(mon.summary.statuses_received, status)
-        if source_id and source_id in self.state.pokemon:
+        is_rest_self_status = source_id == mon_id and cause == "move" and cause_detail == "Rest"
+        if not is_rest_self_status:
+            mon.summary.add_counter(mon.summary.statuses_received, status)
+        if source_id and source_id in self.state.pokemon and not is_rest_self_status:
             source_mon = self.state.pokemon[source_id]
             source_mon.summary.add_counter(source_mon.summary.statuses_inflicted, status)
         mon.status_sources[status] = source_id
@@ -1235,17 +1237,25 @@ class BattleParser:
         from_text = str(annotations.get("from") or "")
         source_id = self._resolve_annotation_source(str(annotations.get("of") or ""))
         if from_text == "move: Toxic Spikes":
-            setter = self.state.sides[self.state.pokemon[target_id].side].side_conditions.get("Toxic Spikes")
-            return (setter.setter_id if setter else None), "hazard", "Toxic Spikes"
+            return self._toxic_spikes_setter(target_id), "hazard", "Toxic Spikes"
         if from_text.startswith("move: "):
             move_name = self._strip_prefix(from_text, "move: ")
             return source_id or (self.move_context.user_id if self.move_context else None), "move", move_name
         if from_text.startswith("ability: "):
             ability = self._strip_prefix(from_text, "ability: ")
             return source_id or self._infer_contact_punish_source(target_id), "ability", ability
+        if not from_text and status in {"psn", "tox"}:
+            setter_id = self._toxic_spikes_setter(target_id)
+            if setter_id:
+                return setter_id, "hazard", "Toxic Spikes"
         if self.move_context and self.move_context.user_id != target_id:
             return self.move_context.user_id, "move", self.move_context.move
         return source_id, "unknown", status
+
+    def _toxic_spikes_setter(self, target_id: str) -> Optional[str]:
+        target_side = self.state.pokemon[target_id].side
+        setter = self.state.sides[target_side].side_conditions.get("Toxic Spikes")
+        return setter.setter_id if setter else None
 
     def _build_attribution(
         self,

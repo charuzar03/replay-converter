@@ -81,6 +81,49 @@ class BattleParserTests(unittest.TestCase):
         self.assertEqual(bliss.status_inflicted, 1)
         self.assertEqual(round(bliss.residual_damage_dealt_pct, 2), 12.0)
 
+    def test_rest_sleep_does_not_count_as_inflicted_or_received_status(self):
+        result = self.parse_battle(
+            """
+|player|p1|Alice|
+|player|p2|Bob|
+|switch|p1a: Ting-Lu|Ting-Lu|244/513
+|switch|p2a: Zap|Zapdos|206/383 tox
+|turn|1
+|move|p1a: Ting-Lu|Rest|p1a: Ting-Lu
+|-status|p1a: Ting-Lu|slp|[from] move: Rest
+|-heal|p1a: Ting-Lu|513/513 slp|[silent]
+|win|Alice
+            """
+        )
+        ting_lu = self.find_row(result, "Ting-Lu")
+        self.assertEqual(ting_lu.status_inflicted, 0)
+        self.assertEqual(ting_lu.status_received, 0)
+
+    def test_toxic_spikes_status_and_residual_are_credited_to_setter(self):
+        result = self.parse_battle(
+            """
+|player|p1|Alice|
+|player|p2|Bob|
+|switch|p1a: Gliscor|Gliscor, M|100/100
+|switch|p2a: Prim|Primarina, F|100/100
+|turn|1
+|move|p1a: Gliscor|Toxic Spikes|p2a: Prim
+|-sidestart|p2: Bob|move: Toxic Spikes
+|turn|2
+|switch|p2a: Lop|Lopunny, M|100/100
+|-status|p2a: Lop|psn
+|turn|3
+|-damage|p2a: Lop|88/100 psn|[from] psn
+|win|Alice
+            """
+        )
+        gliscor = self.find_row(result, "Gliscor")
+        lop = self.find_row(result, "Lop")
+        self.assertEqual(gliscor.status_inflicted, 1)
+        self.assertEqual(round(gliscor.residual_damage_dealt_pct, 2), 12.0)
+        self.assertEqual(lop.status_received, 1)
+        self.assertEqual(round(lop.indirect_damage_taken_pct, 2), 12.0)
+
     def test_leech_seed_tracks_residual_damage_and_healing(self):
         result = self.parse_battle(
             """
