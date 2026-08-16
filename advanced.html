@@ -94,6 +94,8 @@
 
 // ---- JS port of showdown_stats/fetcher.py's URL/text handling -----------
 
+const APP_VERSION="2026-08-16-replay-fetch-4";
+
 function normalizeReplayUrl(rawUrl){
   let parsed;
   try{ parsed = new URL(rawUrl); }catch(e){ return rawUrl; }
@@ -170,6 +172,7 @@ async function fetchText(candidate){
     const canTryCorsFallback = e instanceof TypeError || e.name === "AbortError";
     if(!canTryCorsFallback) throw e;
     let lastError=e;
+    const attempts=["direct: "+(e.message||e.name||e)];
     const proxies=[
       "https://api.cors.syrins.tech/?url="+encodeURIComponent(candidate),
       "https://api.cors.lol/?url="+encodeURIComponent(candidate),
@@ -182,9 +185,10 @@ async function fetchText(candidate){
         return {body:await resp.text(), contentType:(resp.headers.get("content-type")||"").toLowerCase()};
       }catch(proxyError){
         lastError=proxyError;
+        attempts.push(proxy.replace(/\?.*$/,"")+": "+(proxyError.message||proxyError.name||proxyError));
       }
     }
-    throw lastError;
+    throw new Error("All fetch routes failed ("+attempts.join("; ")+")");
   }
 }
 
@@ -453,6 +457,7 @@ parseBtn.addEventListener("click", function(){ handleParse(); });
 pyodideReadyPromise=bootstrapPyodide(setStatus).then(function(api){
   browserApi=api;
   parseBtn.disabled=false;
+  setStatus("Ready. "+APP_VERSION);
 }).catch(function(e){
   setStatus("Failed to load Python runtime: "+(e.message||e));
 });
