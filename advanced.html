@@ -79,6 +79,7 @@
       <div class="tablewrap"><table id="resultsTable"></table></div>
       <div class="actions">
         <button class="ghost" id="copyBtn">Copy as TSV</button>
+        <button class="ghost" id="copyRowsBtn">Copy Output Only</button>
         <button class="ghost" id="downloadBtn">Download CSV</button>
       </div>
       <div id="panelwrap"></div>
@@ -302,6 +303,7 @@ const summaryline=document.getElementById("summaryline");
 const tableEl=document.getElementById("resultsTable");
 const panelwrap=document.getElementById("panelwrap");
 const copyBtn=document.getElementById("copyBtn");
+const copyRowsBtn=document.getElementById("copyRowsBtn");
 const downloadBtn=document.getElementById("downloadBtn");
 
 function setStatus(text){ statusEl.textContent=text; }
@@ -346,6 +348,12 @@ function buildTsv(columns, rows){
   return lines.join("\n");
 }
 
+function buildTsvRowsOnly(columns, rows){
+  return rows.map(function(row){
+    return columns.map(function(c){ return row[c]===undefined||row[c]===null?"":String(row[c]).replace(/\t/g," ").replace(/\n/g," "); }).join("\t");
+  }).join("\n");
+}
+
 function csvCell(value){
   const s=value===undefined||value===null?"":String(value);
   if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
@@ -365,6 +373,14 @@ copyBtn.addEventListener("click", function(){
   const tsv=buildTsv(currentColumns, currentRows);
   navigator.clipboard && navigator.clipboard.writeText(tsv);
   const b=copyBtn; const orig=b.textContent;
+  b.textContent="Copied"; setTimeout(function(){ b.textContent=orig; }, 1500);
+});
+
+copyRowsBtn.addEventListener("click", function(){
+  if(!currentRows.length) return;
+  const tsv=buildTsvRowsOnly(currentColumns, currentRows);
+  navigator.clipboard && navigator.clipboard.writeText(tsv);
+  const b=copyRowsBtn; const orig=b.textContent;
   b.textContent="Copied"; setTimeout(function(){ b.textContent=orig; }, 1500);
 });
 
