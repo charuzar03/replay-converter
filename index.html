@@ -138,7 +138,7 @@ function displayFromId(id, colI){
   }
   function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
   // Multi-word base species keep spaces unless the base is a hyphenated name (Chi-Yu, Ting-Lu, Chien-Pao, Ho-Oh, Porygon-Z, Wo-Chien)
-  var HYPHEN_BASES={"chi-yu":1,"ting-lu":1,"chien-pao":1,"wo-chien":1,"ho-oh":1,"porygon-z":1,"jangmo-o":1,"hakamo-o":1,"kommo-o":1};
+  var HYPHEN_BASES={"chi-yu":1,"ting-lu":1,"chien-pao":1,"wo-chien":1,"ho-oh":1,"porygon-z":1,"jangmo-o":1,"hakamo-o":1,"kommo-o":1,"tapu-koko":1,"tapu-lele":1,"tapu-bulu":1,"tapu-fini":1};
   var baseId=base.join("-"),baseName;
   if(HYPHEN_BASES[baseId]) baseName=base.map(cap).join("-");
   else baseName=base.map(cap).join(" ");
