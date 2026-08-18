@@ -78,6 +78,7 @@
   </div>
   <div class="foot">Pok&eacute;mon league replay formatter &middot; <a href="advanced.html" class="advlink">Advanced Stat Updates (for Charu)</a></div>
 </div>
+<script src="web/automation.js"></script>
 <script>
 (function(){
 const SNAPSHOT={
@@ -226,36 +227,21 @@ function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;
 function convert(){
   status.style.color='var(--muted)';status.textContent='';notesEl.innerHTML='';
   var text=document.getElementById('input').value,winner=wSel.value,loser=lSel.value;
-  if(winner===loser){status.style.color='var(--danger)';status.textContent='Winner and loser must differ.';return;}
-  if(!text.trim()){status.style.color='var(--danger)';status.textContent='Paste the Wiglett output first.';return;}
-  var sM=text.match(/won\s+(\d+)\s*-\s*\d+/i),score=sM?sM[1]:'?';
-  var uM=text.match(/https?:\/\/[^\s]+/),url=uM?uM[0].replace(/[).,]+$/,''):'';
-  var body=text,ri=body.search(/Result:/i);if(ri>=0)body=body.slice(ri+7);
-  var pi=body.search(/Replay:/i);if(pi>=0)body=body.slice(0,pi);
-  body=body.replace(/^[\s\S]*?won\s+\d+\s*-\s*\d+/i,'');
-  var aRe=/(?:^|\s)([^\s:]+):\s+[A-Za-z0-9'.\u2019-]/g,anchors=[],am;
-  while((am=aRe.exec(body))!==null){var cp=body.indexOf(':',am.index);anchors.push({labelEnd:cp+1,matchStart:am.index});}
-  var segs=[];
-  for(var i=0;i<anchors.length;i++){
-    var s=anchors[i].labelEnd,e=(i+1<anchors.length)?anchors[i+1].matchStart:body.length,sg=body.slice(s,e);
-    if(/has\s+\d+\s+kills?/i.test(sg))segs.push(parseTeam(sg));
-  }
-  if(segs.length<2){status.style.color='var(--danger)';status.textContent='Could not find two teams — check the pasted text.';return;}
-  var A=segs[0],B=segs[1];
-  var nA=A.map(function(x){return x.name;}),nB=B.map(function(x){return x.name;});
-  var optX=scoreSeg(nA,winner)+scoreSeg(nB,loser),optY=scoreSeg(nA,loser)+scoreSeg(nB,winner);
-  var wT=optX>=optY?A:B,lT=optX>=optY?B:A,notes=[];
-  function build(team,coach){
-    return team.slice().reverse().map(function(e){
-      var r=resolveMon(coach,e.name);
-      if(r.status==="corrected")notes.push({t:"fix",m:coach+": "+r.from+" → "+r.out});
-      if(r.status==="ambiguous")notes.push({t:"warn",m:coach+": "+r.from+" is ambiguous ("+r.options.join(" / ")+") — used "+r.out});
-      if(r.status==="unmatched")notes.push({t:"warn",m:coach+": "+r.from+" isn't on their roster — kept as-is"});
-      return e.k+e.d+r.out;
+  var payload;
+  try{
+    payload=ReplayAutomation.buildBasicBattlePayload({
+      wiglettText:text,
+      winner:winner,
+      loser:loser,
+      parseTeam:parseTeam,
+      scoreSeg:scoreSeg,
+      resolveMon:resolveMon
     });
+  }catch(e){
+    status.style.color='var(--danger)';status.textContent=e.message;return;
   }
-  var tw=build(wT,winner),tl=build(lT,loser);
-  output.textContent=['match',winner,loser,score,url].concat(tw).concat(tl).join(',');
+  var tw=payload.winnerPokemon,tl=payload.loserPokemon,notes=payload.notes;
+  output.textContent=payload.battleRowCsv;
   outwrap.style.display='block';
   status.textContent='Done — '+tw.length+' + '+tl.length+' Pokémon.';
   if(notes.length){

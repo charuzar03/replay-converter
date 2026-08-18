@@ -88,6 +88,7 @@
   <div class="foot">Pok&eacute;mon replay stat parser &mdash; runs entirely in your browser</div>
 </div>
 
+<script src="web/automation.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v314.0.4/full/pyodide.js"></script>
 <script>
 (function(){
@@ -442,21 +443,20 @@ async function handleParse(){
     const input=inputs[i];
     setStatus("Parsing "+(i+1)+" of "+inputs.length+"…");
     await new Promise(function(r){ setTimeout(r,0); });
-    let resultJson;
+    let result;
     try{
-      resultJson=browserApi.parse_replay(input.content, input.identifier, input.replayUrl||"", JSON.stringify(input.metadata||{}));
+      result=ReplayAutomation.parseAdvancedStatsForReplay({browserApi:browserApi,input:input});
     }catch(e){
       errors.push({id:input.identifier, message:String(e.message||e)});
       continue;
     }
-    const result=JSON.parse(resultJson);
     if(result.error){
-      errors.push({id:result.battle_id||input.identifier, message:result.error});
+      errors.push({id:result.battleId||input.identifier, message:result.error});
       continue;
     }
     parsedCount+=1;
-    (result.warnings||[]).forEach(function(w){ warnings.push({id:result.battle_id, message:w}); });
-    (result.pokemon_rows||[]).forEach(function(row){
+    (result.warnings||[]).forEach(function(w){ warnings.push({id:result.battleId, message:w}); });
+    (result.pokemonRows||[]).forEach(function(row){
       if(!columns) columns=Object.keys(row);
       allRows.push(row);
     });
