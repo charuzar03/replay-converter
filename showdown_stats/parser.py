@@ -640,16 +640,21 @@ class BattleParser:
         if not args:
             return
         weather = args[0]
-        source_id = self._infer_effect_source(args[1:]) or (self.move_context.user_id if self.move_context else None)
+        annotations = self._parse_annotations(args[1:])
+        is_upkeep = "[upkeep]" in annotations.get("via", [])
+        source_id = self._resolve_annotation_source(str(annotations.get("of") or ""))
+        if not source_id and not is_upkeep:
+            source_id = self.move_context.user_id if self.move_context else None
         if weather in {"none", ""}:
             self.weather_source = {"name": "", "source_id": None}
         else:
-            self.weather_source = {"name": weather, "source_id": source_id}
+            if source_id or self.weather_source.get("name") != weather:
+                self.weather_source = {"name": weather, "source_id": source_id}
             self._mark_move_landed_for_secondary_effect(source_id)
         self._emit_event(
             event_type="weather",
-            source=self._label_mon(source_id),
-            source_species=self._species_of(source_id),
+            source=self._label_mon(source_id or self.weather_source.get("source_id")),
+            source_species=self._species_of(source_id or self.weather_source.get("source_id")),
             cause=weather,
             raw_line=raw_line,
         )

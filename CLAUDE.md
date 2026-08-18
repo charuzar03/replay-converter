@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs for this repo are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+This repo uses the default Matt Pocock skill triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context domain docs layout. See `docs/agents/domain.md`.
+
 ## What this project is
 
 A Python CLI that parses Pokemon Showdown replay logs (the pipe-delimited `|event|arg1|arg2|...` protocol) into CSV files suitable for import into Google Sheets. It fetches replays by URL, local file, folder, or pasted text, replays the protocol line-by-line against an in-memory battle state machine, and exports three CSVs: raw normalized events, per-Pokemon-per-battle summaries, and per-battle summaries.

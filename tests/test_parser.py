@@ -81,6 +81,40 @@ class BattleParserTests(unittest.TestCase):
         self.assertEqual(bliss.status_inflicted, 1)
         self.assertEqual(round(bliss.residual_damage_dealt_pct, 2), 12.0)
 
+    def test_weather_residual_stays_credited_to_weather_setter(self):
+        result = self.parse_battle(
+            """
+|player|p1|Alice|
+|player|p2|Bob|
+|switch|p1a: Ttar|Tyranitar, M|100/100
+|-weather|Sandstorm|[from] ability: Sand Stream|[of] p1a: Ttar
+|switch|p2a: Goon|Obstagoon, F|100/100
+|turn|1
+|move|p2a: Goon|Knock Off|p1a: Ttar
+|-damage|p1a: Ttar|80/100
+|-weather|Sandstorm|[upkeep]
+|-damage|p2a: Goon|94/100|[from] Sandstorm
+|turn|2
+|switch|p1a: Zap|Zapdos|100/100
+|move|p2a: Goon|Facade|p1a: Zap
+|-damage|p1a: Zap|70/100
+|-weather|Sandstorm|[upkeep]
+|-damage|p1a: Zap|64/100|[from] Sandstorm
+|win|Alice
+            """
+        )
+        ttar = self.find_row(result, "Ttar")
+        goon = self.find_row(result, "Goon")
+        zap = self.find_row(result, "Zap")
+        weather_events = [
+            event for event in result.events if event.event_type == "damage" and event.cause == "weather"
+        ]
+        self.assertEqual([event.source_species for event in weather_events], ["Tyranitar", "Tyranitar"])
+        self.assertEqual(round(ttar.residual_damage_dealt_pct, 2), 12.0)
+        self.assertEqual(round(goon.residual_damage_dealt_pct, 2), 0.0)
+        self.assertEqual(round(zap.residual_damage_dealt_pct, 2), 0.0)
+        self.assertEqual(round(zap.indirect_damage_taken_pct, 2), 6.0)
+
     def test_rest_sleep_does_not_count_as_inflicted_or_received_status(self):
         result = self.parse_battle(
             """
