@@ -209,7 +209,8 @@ function buildRostersFromCSV(text){
 const APP_VERSION="2026-08-20-submit-preview-1";
 const DEFAULT_APPS_SCRIPT_URL="";
 const VENDORED_FILES=["__init__.py","fetcher.py","models.py","parser.py","exporter.py"];
-var browserApi=null,pyodideReadyPromise=null,currentPreview=null,duplicateReady=false,submitInFlight=false;
+const SUBMIT_TIMEOUT_MS=20000;
+var browserApi=null,pyodideReadyPromise=null,currentPreview=null,duplicateReady=false,submitInFlight=false,submitTimeout=null;
 
 function normalizeReplayUrl(rawUrl){
   try{
@@ -381,7 +382,11 @@ function isTrustedAppsScriptOrigin(origin){
   try{return origin===new URL(appsScriptUrl.value.trim()).origin;}catch(e){return false;}
 }
 function setSubmitStatus(text,cls){submitStatus.textContent=text;submitStatus.style.color=cls==="error"?'var(--danger)':(cls==="ok"?'var(--ok)':'var(--muted)');}
+function clearSubmitTimeout(){
+  if(submitTimeout){clearTimeout(submitTimeout);submitTimeout=null;}
+}
 function resetSubmission(){
+  clearSubmitTimeout();
   currentPreview=null;duplicateReady=false;submitInFlight=false;
   previewEl.style.display='none';submitBtn.disabled=true;replaceBtn.style.display='none';setSubmitStatus('');
 }
@@ -464,9 +469,16 @@ function submitBattle(replaceExisting){
   submitForm.action=url;
   submitInFlight=true;submitBtn.disabled=true;replaceBtn.style.display='none';
   setSubmitStatus(replaceExisting?'Replacing existing battle…':'Submitting battle…');
+  clearSubmitTimeout();
+  submitTimeout=setTimeout(function(){
+    if(!submitInFlight)return;
+    submitInFlight=false;submitBtn.disabled=false;replaceBtn.style.display=duplicateReady?'inline-block':'none';
+    setSubmitStatus('No Apps Script response arrived. Check the web app deployment URL, access settings, and latest deployed code before retrying.','error');
+  },SUBMIT_TIMEOUT_MS);
   submitForm.submit();
 }
 function handleSubmitResult(result){
+  clearSubmitTimeout();
   submitInFlight=false;
   if(result.ok){
     submitBtn.disabled=true;replaceBtn.style.display='none';
@@ -487,17 +499,6 @@ window.addEventListener('message',function(event){
   var data=event.data;
   if(!data||data.source!=="replay-converter-apps-script")return;
   handleSubmitResult(data.payload||{ok:false,status:"error",message:"Apps Script returned an invalid bridge response."});
-});
-submitFrame.addEventListener('load',function(){
-  if(!submitInFlight)return;
-  try{
-    var doc=submitFrame.contentDocument||submitFrame.contentWindow.document;
-    var text=(doc.body&&doc.body.innerText)||doc.documentElement.textContent||'';
-    handleSubmitResult(ReplayAutomation.parseAppsScriptResponseText(text));
-  }catch(e){
-    submitInFlight=false;submitBtn.disabled=false;
-    setSubmitStatus('Submission response could not be read. Check Apps Script deployment access and the sheet before retrying.','error');
-  }
 });
 convertBtn.addEventListener('click',function(){convert();});
 submitBtn.addEventListener('click',function(){submitBattle(false);});

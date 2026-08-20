@@ -25,11 +25,15 @@ class MainAutomationUiTests(unittest.TestCase):
             'replay-converter-apps-script',
             "ReplayAutomation.buildSingleBattleAutomationPayload",
             "ReplayAutomation.buildBattleSubmissionPayload",
-            "ReplayAutomation.parseAppsScriptResponseText",
             "isTrustedAppsScriptOrigin",
             "host.endsWith(\".script.googleusercontent.com\")",
+            "SUBMIT_TIMEOUT_MS",
+            "No Apps Script response arrived.",
         ]:
             self.assertIn(expected, INDEX)
+        self.assertNotIn("submitFrame.contentDocument", INDEX)
+        self.assertNotIn("submitFrame.contentWindow.document", INDEX)
+        self.assertIn("setTimeout", INDEX)
 
     def test_main_page_reuses_advanced_parser_for_preview(self):
         for expected in [
