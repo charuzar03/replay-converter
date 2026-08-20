@@ -374,7 +374,10 @@ var convertBtn=document.getElementById('convert'),previewEl=document.getElementB
 appsScriptUrl.value=localStorage.getItem('replayConverterAppsScriptUrl')||DEFAULT_APPS_SCRIPT_URL;
 function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function isTrustedAppsScriptOrigin(origin){
-  if(origin==="https://script.googleusercontent.com")return true;
+  try{
+    var host=new URL(origin).hostname;
+    if(host==="script.googleusercontent.com"||host.endsWith(".script.googleusercontent.com"))return true;
+  }catch(e){}
   try{return origin===new URL(appsScriptUrl.value.trim()).origin;}catch(e){return false;}
 }
 function setSubmitStatus(text,cls){submitStatus.textContent=text;submitStatus.style.color=cls==="error"?'var(--danger)':(cls==="ok"?'var(--ok)':'var(--muted)');}

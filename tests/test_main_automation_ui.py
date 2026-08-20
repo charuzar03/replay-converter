@@ -27,7 +27,7 @@ class MainAutomationUiTests(unittest.TestCase):
             "ReplayAutomation.buildBattleSubmissionPayload",
             "ReplayAutomation.parseAppsScriptResponseText",
             "isTrustedAppsScriptOrigin",
-            "https://script.googleusercontent.com",
+            "host.endsWith(\".script.googleusercontent.com\")",
         ]:
             self.assertIn(expected, INDEX)
 
