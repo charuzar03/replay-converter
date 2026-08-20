@@ -23,6 +23,9 @@ class AppsScriptBackendTests(unittest.TestCase):
         self.assertIn("function iframeResponse(payload)", CODE)
         self.assertIn("ContentService.MimeType.JSON", CODE)
         self.assertIn('source:\\"replay-converter-apps-script\\"', CODE)
+        self.assertIn("parent.postMessage", CODE)
+        self.assertIn("top.postMessage", CODE)
+        self.assertIn("setTimeout(send,500)", CODE)
 
     def test_backend_validates_submission_contract(self):
         for required in [

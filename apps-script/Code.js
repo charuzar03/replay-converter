@@ -253,8 +253,21 @@ function jsonResponse(payload) {
 
 function iframeResponse(payload) {
   var json = JSON.stringify(payload).replace(/</g, "\\u003c");
+  var html = [
+    "<!doctype html><meta charset=\"utf-8\">",
+    "<script>",
+    "(function(){",
+    "var message={source:\"replay-converter-apps-script\",payload:" + json + "};",
+    "function send(){",
+    "try{parent.postMessage(message,\"*\");}catch(e){}",
+    "try{top.postMessage(message,\"*\");}catch(e){}",
+    "}",
+    "send();setTimeout(send,100);setTimeout(send,500);",
+    "})();",
+    "</script>"
+  ].join("");
   return HtmlService
-    .createHtmlOutput("<!doctype html><meta charset=\"utf-8\"><script>parent.postMessage({source:\"replay-converter-apps-script\",payload:" + json + "},\"*\");</script>")
+    .createHtmlOutput(html)
     .setTitle("Replay Converter Submission");
 }
 
