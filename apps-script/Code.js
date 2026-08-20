@@ -268,6 +268,7 @@ function iframeResponse(payload) {
   ].join("");
   return HtmlService
     .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .setTitle("Replay Converter Submission");
 }
 

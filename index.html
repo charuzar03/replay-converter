@@ -374,7 +374,8 @@ var status=document.getElementById('status'),outwrap=document.getElementById('ou
 var convertBtn=document.getElementById('convert'),previewEl=document.getElementById('preview'),submitBtn=document.getElementById('submitBattle'),replaceBtn=document.getElementById('replaceBattle'),submitStatus=document.getElementById('submitStatus'),appsScriptUrl=document.getElementById('appsScriptUrl'),submitForm=document.getElementById('submitForm'),submitPayload=document.getElementById('submitPayload'),submitFrame=document.getElementById('submitFrame');
 appsScriptUrl.value=localStorage.getItem('replayConverterAppsScriptUrl')||DEFAULT_APPS_SCRIPT_URL;
 function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-function isTrustedAppsScriptOrigin(origin){
+function isTrustedAppsScriptOrigin(origin,source){
+  if(origin==="null"&&source===submitFrame.contentWindow)return true;
   try{
     var host=new URL(origin).hostname;
     if(host==="script.googleusercontent.com"||host.endsWith(".script.googleusercontent.com"))return true;
@@ -495,7 +496,7 @@ function handleSubmitResult(result){
 }
 window.addEventListener('message',function(event){
   if(!submitInFlight)return;
-  if(!isTrustedAppsScriptOrigin(event.origin))return;
+  if(!isTrustedAppsScriptOrigin(event.origin,event.source))return;
   var data=event.data;
   if(!data||data.source!=="replay-converter-apps-script")return;
   handleSubmitResult(data.payload||{ok:false,status:"error",message:"Apps Script returned an invalid bridge response."});

@@ -27,6 +27,7 @@ class MainAutomationUiTests(unittest.TestCase):
             "ReplayAutomation.buildBattleSubmissionPayload",
             "isTrustedAppsScriptOrigin",
             "host.endsWith(\".script.googleusercontent.com\")",
+            'origin==="null"&&source===submitFrame.contentWindow',
             "SUBMIT_TIMEOUT_MS",
             "No Apps Script response arrived.",
         ]:

@@ -15,6 +15,9 @@ This folder contains the Google Apps Script web app for one-battle sheet submiss
    - **Who has access**: Anyone
 4. Configure the static site to post a hidden form field named `payload` to the web app URL.
 
+The iframe response path depends on `HtmlOutput.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)`.
+After changing `Code.js`, deploy a new web app version; saving the Apps Script project alone does not update the `/exec` deployment.
+
 ## Request Shape
 
 The web app expects one form field named `payload` containing JSON from `ReplayAutomation.buildSingleBattleAutomationPayload`, plus a `replaceExisting` boolean when the user has explicitly confirmed replacement.

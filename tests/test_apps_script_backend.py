@@ -26,6 +26,7 @@ class AppsScriptBackendTests(unittest.TestCase):
         self.assertIn("parent.postMessage", CODE)
         self.assertIn("top.postMessage", CODE)
         self.assertIn("setTimeout(send,500)", CODE)
+        self.assertIn("setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)", CODE)
 
     def test_backend_validates_submission_contract(self):
         for required in [
