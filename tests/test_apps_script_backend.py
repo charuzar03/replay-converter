@@ -19,7 +19,10 @@ class AppsScriptBackendTests(unittest.TestCase):
     def test_backend_exposes_form_post_entrypoint(self):
         self.assertIn("function doPost(event)", CODE)
         self.assertIn("event.parameter.payload", CODE)
+        self.assertIn('event.parameter.responseMode === "iframe"', CODE)
+        self.assertIn("function iframeResponse(payload)", CODE)
         self.assertIn("ContentService.MimeType.JSON", CODE)
+        self.assertIn('source:\\"replay-converter-apps-script\\"', CODE)
 
     def test_backend_validates_submission_contract(self):
         for required in [

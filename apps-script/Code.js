@@ -50,11 +50,14 @@ var ADVANCED_COLUMNS = [
 ];
 
 function doPost(event) {
+  var response;
   try {
-    return jsonResponse(handleBattleSubmission_(event));
+    response = handleBattleSubmission_(event);
   } catch (error) {
-    return jsonResponse(errorResponse_("invalid_request", String(error && error.message ? error.message : error)));
+    response = errorResponse_("invalid_request", String(error && error.message ? error.message : error));
   }
+  if (event && event.parameter && event.parameter.responseMode === "iframe") return iframeResponse(response);
+  return jsonResponse(response);
 }
 
 function handleBattleSubmission_(event) {
@@ -246,6 +249,13 @@ function jsonResponse(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function iframeResponse(payload) {
+  var json = JSON.stringify(payload).replace(/</g, "\\u003c");
+  return HtmlService
+    .createHtmlOutput("<!doctype html><meta charset=\"utf-8\"><script>parent.postMessage({source:\"replay-converter-apps-script\",payload:" + json + "},\"*\");</script>")
+    .setTitle("Replay Converter Submission");
 }
 
 function errorResponse_(code, message) {

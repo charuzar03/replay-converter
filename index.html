@@ -27,9 +27,13 @@
   select:focus,textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(224,138,60,.2);}
   .actions{display:flex;gap:10px;align-items:center;margin:14px 0 20px;}
   button.primary{background:var(--orange);border:none;color:#4A2A0C;font-weight:600;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;}
-  button.primary:hover{background:var(--orange-dark);}
+  button.primary:hover:not(:disabled){background:var(--orange-dark);}
+  button.primary:disabled{opacity:.5;cursor:not-allowed;}
   button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;margin-top:10px;}
-  button.ghost:hover{background:var(--surface);}
+  button.ghost:hover:not(:disabled){background:var(--surface);}
+  button.ghost:disabled{opacity:.5;cursor:not-allowed;}
+  input[type=url]{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);color:var(--text);font-family:inherit;}
+  input[type=url]:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(224,138,60,.2);}
   #status{font-size:13px;color:var(--muted);}
   #outwrap{display:none;}
   #output{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;word-break:break-all;white-space:pre-wrap;}
@@ -41,6 +45,18 @@
   button.mini{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;}
   button.mini:hover{background:var(--surface);color:var(--text);}
   #notes .h{font-weight:600;margin:0 0 4px;}
+  .preview{display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:14px;}
+  .preview h2{font-size:15px;margin:0 0 10px;font-weight:600;}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:13px;}
+  .meta div{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:0;}
+  .meta span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+  .warnlist{font-size:13px;line-height:1.6;margin-top:10px;}
+  .warnlist .warn{color:var(--danger);}
+  .warnlist .info{color:var(--muted);}
+  .previewrow{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all;white-space:pre-wrap;margin-bottom:12px;}
+  .submitrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  #submitStatus{font-size:13px;color:var(--muted);}
+  iframe[name=submitFrame]{display:none;}
   .foot{margin-top:24px;font-size:12px;color:var(--muted);text-align:center;}
   .foot a.advlink{color:var(--muted);text-decoration:underline;}
   .foot a.advlink:hover{color:var(--text);}
@@ -56,7 +72,7 @@
     <p class="label">How to use</p>
     <div class="step"><div class="num">1</div><div class="txt">Run <code class="k">/analyse</code> on the replay using Wiglett on Discord.</div></div>
     <div class="step"><div class="num">2</div><div class="txt">Paste the <strong>entire</strong> Wiglett output below &mdash; including the <strong>Replay Analysis</strong> heading &mdash; and pick the winner and loser.</div></div>
-    <div class="step"><div class="num">3</div><div class="txt">Paste the result into the <strong>Battle Data Raw</strong> tab.</div></div>
+    <div class="step"><div class="num">3</div><div class="txt">Review the generated row and submit the battle to the sheet bridge, or copy the row as a manual fallback.</div></div>
     <p style="margin:14px 0 0;font-size:12.5px;color:var(--muted);">Rosters are read live from the Backend tab each time this page loads, so free agency pickups and trades apply automatically.</p>
   </div>
   <div class="srcbar">
@@ -76,9 +92,34 @@
     <button class="ghost" id="copy">Copy</button>
     <div id="notes"></div>
   </div>
+  <div id="preview" class="preview">
+    <h2>Submission preview</h2>
+    <div class="meta">
+      <div><span>Replay</span><strong id="previewBattleId"></strong></div>
+      <div><span>S4 Stats</span><strong id="previewAdvancedRows"></strong></div>
+      <div><span>Winner</span><strong id="previewWinner"></strong></div>
+      <div><span>Loser</span><strong id="previewLoser"></strong></div>
+    </div>
+    <label>Battle Data Raw row</label>
+    <div id="previewBattleRow" class="previewrow"></div>
+    <label for="appsScriptUrl">Apps Script Web App URL</label>
+    <input id="appsScriptUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+    <div id="previewWarnings" class="warnlist"></div>
+    <div class="submitrow">
+      <button class="primary" id="submitBattle" disabled>Submit battle</button>
+      <button class="ghost" id="replaceBattle" style="display:none">Replace existing</button>
+      <span id="submitStatus"></span>
+    </div>
+  </div>
+  <form id="submitForm" method="post" target="submitFrame" style="display:none">
+    <input type="hidden" name="payload" id="submitPayload">
+    <input type="hidden" name="responseMode" value="iframe">
+  </form>
+  <iframe name="submitFrame" id="submitFrame"></iframe>
   <div class="foot">Pok&eacute;mon league replay formatter &middot; <a href="advanced.html" class="advlink">Advanced Stat Updates (for Charu)</a></div>
 </div>
 <script src="web/automation.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.4/full/pyodide.js"></script>
 <script>
 (function(){
 const SNAPSHOT={
@@ -164,6 +205,112 @@ function buildRostersFromCSV(text){
   return out;
 }
 
+// ---- REPLAY FETCH + ADVANCED PARSER -----------------------------------
+const APP_VERSION="2026-08-20-submit-preview-1";
+const DEFAULT_APPS_SCRIPT_URL="";
+const VENDORED_FILES=["__init__.py","fetcher.py","models.py","parser.py","exporter.py"];
+var browserApi=null,pyodideReadyPromise=null,currentPreview=null,duplicateReady=false,submitInFlight=false;
+
+function normalizeReplayUrl(rawUrl){
+  try{
+    var parsed=new URL(rawUrl);
+    var host=(parsed.hostname||"").toLowerCase();
+    if(host.endsWith("google.com")&&parsed.pathname==="/url"){
+      var q=parsed.searchParams.get("q")||parsed.searchParams.get("url");
+      if(q)return normalizeReplayUrl(q.trim());
+    }
+    if(host.endsWith("pokemonshowdown.com"))return parsed.protocol+"//"+parsed.host+parsed.pathname.replace(/\/+$/,"");
+  }catch(e){}
+  return rawUrl;
+}
+function battleIdFromUrl(url){
+  try{
+    var parsed=new URL(url),stem=(parsed.pathname.replace(/\/+$/,"").split("/").pop()||"");
+    return stem.replace(/\.(json|log|html)$/,"")||"unknown-battle";
+  }catch(e){return "unknown-battle";}
+}
+function candidateUrls(url){
+  var cleaned=url.replace(/\/+$/,""),base;
+  if(cleaned.endsWith(".html"))return[cleaned];
+  base=(cleaned.endsWith(".json")||cleaned.endsWith(".log"))?cleaned.slice(0,cleaned.lastIndexOf(".")):cleaned;
+  return[base+".json",base+".log",cleaned];
+}
+function looksLikeHtml(text){return /<(html|!doctype|head|body)\b/.test(String(text).slice(0,500).toLowerCase());}
+function looksLikeProtocolLog(text){return String(text).split(/\r\n|\r|\n/).some(function(line){return line.startsWith("|");});}
+function decodeHtmlEntities(text){var el=document.createElement("textarea");el.innerHTML=text;return el.value;}
+function extractProtocolLogFromHtml(text){
+  var match=String(text).match(/<script\b(?=[^>]*\bclass=["'][^"']*\bbattle-log-data\b[^"']*["'])[^>]*>([\s\S]*?)<\/script>/i);
+  if(!match)return"";
+  var log=decodeHtmlEntities(match[1]).trim();
+  return looksLikeProtocolLog(log)?log:"";
+}
+async function fetchWithTimeout(url,timeoutMs){
+  var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},timeoutMs);
+  try{return await fetch(url,{cache:"no-store",signal:controller.signal});}
+  finally{clearTimeout(timer);}
+}
+async function fetchText(candidate){
+  try{
+    var resp=await fetchWithTimeout(candidate,3000);
+    if(!resp.ok)throw new Error("HTTP "+resp.status);
+    return{body:await resp.text(),contentType:(resp.headers.get("content-type")||"").toLowerCase()};
+  }catch(e){
+    var canTry=e instanceof TypeError||e.name==="AbortError";
+    if(!canTry)throw e;
+    var attempts=["direct: "+(e.message||e.name||e)],proxies=[
+      "https://api.cors.syrins.tech/?url="+encodeURIComponent(candidate),
+      "https://api.cors.lol/?url="+encodeURIComponent(candidate),
+      "https://api.allorigins.win/raw?url="+encodeURIComponent(candidate)
+    ],lastError=e;
+    for(var i=0;i<proxies.length;i++){
+      try{
+        var proxyResp=await fetchWithTimeout(proxies[i],8000);
+        if(!proxyResp.ok)throw new Error("HTTP "+proxyResp.status+" via CORS fallback");
+        return{body:await proxyResp.text(),contentType:(proxyResp.headers.get("content-type")||"").toLowerCase()};
+      }catch(proxyError){
+        lastError=proxyError;attempts.push(proxies[i].replace(/\?.*$/,"")+": "+(proxyError.message||proxyError.name||proxyError));
+      }
+    }
+    throw new Error("All fetch routes failed ("+attempts.join("; ")+"): "+lastError);
+  }
+}
+async function fetchReplayFromUrl(rawUrl){
+  var url=normalizeReplayUrl(rawUrl.trim()),battleId=battleIdFromUrl(url),candidates=candidateUrls(url),lastError=null;
+  for(var i=0;i<candidates.length;i++){
+    try{
+      var fetched=await fetchText(candidates[i]),body=fetched.body,contentType=fetched.contentType;
+      if(candidates[i].endsWith(".json")||contentType.startsWith("application/json")){
+        var payload=JSON.parse(body),log=payload.log||"";
+        if(!log)throw new Error("No 'log' field found in JSON replay payload.");
+        return{identifier:String(payload.id||battleId),content:log,replayUrl:url,metadata:{uploadtime:payload.uploadtime,format:payload.format,id:payload.id||battleId}};
+      }
+      if(looksLikeHtml(body)){
+        var htmlLog=extractProtocolLogFromHtml(body);
+        if(htmlLog)return{identifier:battleId,content:htmlLog,replayUrl:url,metadata:{}};
+        throw new Error("HTML replay page did not contain embedded battle log data.");
+      }
+      if(!looksLikeProtocolLog(body))throw new Error("Response did not look like a Pokemon Showdown protocol log.");
+      return{identifier:battleId,content:body,replayUrl:url,metadata:{}};
+    }catch(e){lastError=e;}
+  }
+  throw new Error("Unable to fetch replay log from "+url+": "+lastError);
+}
+async function bootstrapPyodide(setStatus){
+  setStatus("Loading parser…");
+  var pyodide=await loadPyodide({indexURL:"https://cdn.jsdelivr.net/pyodide/v314.0.4/full/"});
+  pyodide.FS.mkdirTree("/showdown_stats");
+  for(var i=0;i<VENDORED_FILES.length;i++){
+    var name=VENDORED_FILES[i],resp=await fetch("showdown_stats/"+name);
+    if(!resp.ok)throw new Error("Failed to fetch showdown_stats/"+name+": HTTP "+resp.status);
+    pyodide.FS.writeFile("/showdown_stats/"+name,await resp.text());
+  }
+  var apiResp=await fetch("web/browser_api.py");
+  if(!apiResp.ok)throw new Error("Failed to fetch web/browser_api.py: HTTP "+apiResp.status);
+  pyodide.FS.writeFile("/browser_api.py",await apiResp.text());
+  pyodide.runPython('import sys\nif "/" not in sys.path:\n    sys.path.insert(0, "/")');
+  return pyodide.pyimport("browser_api");
+}
+
 const PREFIX={alolan:"alola",alola:"alola",galarian:"galar",galar:"galar",hisuian:"hisui",hisui:"hisui",paldean:"paldea",paldea:"paldea",mega:"mega"};
 const FORM=new Set(["mega","x","y","alola","galar","hisui","paldea","therian","incarnate","origin","50","50%","wellspring","hearthflame","cornerstone","teal","dawn","dusk","wings","mane","crowned","ultra","zen","sky","heat","wash","mow","frost","fan","bloodmoon","primal","unbound","confined","blade","shield","aria","antique","gmax","f","m","striped","hero","core","complete","single","rapid","strike"]);
 function normId(s){
@@ -223,9 +370,38 @@ loadLive();
 var rb=document.getElementById('refresh');
 if(rb)rb.addEventListener('click',function(){ loadLive(); });
 var status=document.getElementById('status'),outwrap=document.getElementById('outwrap'),output=document.getElementById('output'),notesEl=document.getElementById('notes');
+var convertBtn=document.getElementById('convert'),previewEl=document.getElementById('preview'),submitBtn=document.getElementById('submitBattle'),replaceBtn=document.getElementById('replaceBattle'),submitStatus=document.getElementById('submitStatus'),appsScriptUrl=document.getElementById('appsScriptUrl'),submitForm=document.getElementById('submitForm'),submitPayload=document.getElementById('submitPayload'),submitFrame=document.getElementById('submitFrame');
+appsScriptUrl.value=localStorage.getItem('replayConverterAppsScriptUrl')||DEFAULT_APPS_SCRIPT_URL;
 function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-function convert(){
-  status.style.color='var(--muted)';status.textContent='';notesEl.innerHTML='';
+function isTrustedAppsScriptOrigin(origin){
+  if(origin==="https://script.googleusercontent.com")return true;
+  try{return origin===new URL(appsScriptUrl.value.trim()).origin;}catch(e){return false;}
+}
+function setSubmitStatus(text,cls){submitStatus.textContent=text;submitStatus.style.color=cls==="error"?'var(--danger)':(cls==="ok"?'var(--ok)':'var(--muted)');}
+function resetSubmission(){
+  currentPreview=null;duplicateReady=false;submitInFlight=false;
+  previewEl.style.display='none';submitBtn.disabled=true;replaceBtn.style.display='none';setSubmitStatus('');
+}
+function renderPreview(payload){
+  currentPreview=payload;duplicateReady=false;submitInFlight=false;
+  document.getElementById('previewBattleId').textContent=payload.advancedStats.battleId||battleIdFromUrl(payload.replayUrl);
+  document.getElementById('previewAdvancedRows').textContent=(payload.advancedStats.pokemonRows||[]).length+' rows';
+  document.getElementById('previewWinner').textContent=payload.basicBattleRow[1]+' won '+payload.basicBattleRow[3]+'-0';
+  document.getElementById('previewLoser').textContent=payload.basicBattleRow[2];
+  document.getElementById('previewBattleRow').textContent=payload.basicBattleRowCsv;
+  var warnings=payload.warnings||[],html='';
+  if(warnings.length){
+    html+='<p class="h warn">Non-fatal warnings</p>';
+    warnings.forEach(function(w){html+='<div class="warn">'+esc(w)+'</div>';});
+  }else html='<div class="info">No parser or roster warnings.</div>';
+  document.getElementById('previewWarnings').innerHTML=html;
+  previewEl.style.display='block';
+  submitBtn.disabled=false;
+  replaceBtn.style.display='none';
+  setSubmitStatus('Ready to submit.');
+}
+async function convert(){
+  status.style.color='var(--muted)';status.textContent='';notesEl.innerHTML='';resetSubmission();
   var text=document.getElementById('input').value,winner=wSel.value,loser=lSel.value;
   var payload;
   try{
@@ -250,11 +426,89 @@ function convert(){
     if(wn.length){h+='<p class="h" style="color:var(--danger);margin-top:10px">Check these</p>';wn.forEach(function(n){h+='<div style="color:var(--danger)">'+esc(n.m)+'</div>';});}
     notesEl.innerHTML=h;
   }
+  convertBtn.disabled=true;
+  try{
+    if(!browserApi)await pyodideReadyPromise;
+    status.textContent='Fetching replay and building preview…';
+    var fullPayload=await ReplayAutomation.buildSingleBattleAutomationPayload({
+      wiglettText:text,
+      winner:winner,
+      loser:loser,
+      parseTeam:parseTeam,
+      scoreSeg:scoreSeg,
+      resolveMon:resolveMon,
+      fetchReplayFromUrl:fetchReplayFromUrl,
+      browserApi:browserApi
+    });
+    renderPreview(fullPayload);
+    status.style.color='var(--ok)';
+    status.textContent='Preview ready — '+tw.length+' + '+tl.length+' Pokemon, '+fullPayload.advancedStats.pokemonRows.length+' S4 Stats rows.';
+  }catch(e){
+    status.style.color='var(--danger)';
+    status.textContent='Preview failed: '+(e.message||e);
+  }finally{
+    convertBtn.disabled=false;
+  }
 }
-document.getElementById('convert').addEventListener('click',convert);
+function submitBattle(replaceExisting){
+  if(submitInFlight)return;
+  if(!currentPreview){setSubmitStatus('Preview the battle before submitting.','error');return;}
+  var url=appsScriptUrl.value.trim();
+  if(!url){setSubmitStatus('Paste the Apps Script Web App URL first.','error');return;}
+  localStorage.setItem('replayConverterAppsScriptUrl',url);
+  var outbound=ReplayAutomation.buildBattleSubmissionPayload(currentPreview,replaceExisting);
+  submitPayload.value=JSON.stringify(outbound);
+  submitForm.action=url;
+  submitInFlight=true;submitBtn.disabled=true;replaceBtn.style.display='none';
+  setSubmitStatus(replaceExisting?'Replacing existing battle…':'Submitting battle…');
+  submitForm.submit();
+}
+function handleSubmitResult(result){
+  submitInFlight=false;
+  if(result.ok){
+    submitBtn.disabled=true;replaceBtn.style.display='none';
+    setSubmitStatus(result.message+' '+(result.advancedRowsWritten||0)+' S4 Stats rows written.','ok');
+    return;
+  }
+  if(result.status==="duplicate"){
+    duplicateReady=true;submitBtn.disabled=false;replaceBtn.style.display='inline-block';
+    setSubmitStatus(result.message,'error');
+    return;
+  }
+  submitBtn.disabled=false;replaceBtn.style.display=duplicateReady?'inline-block':'none';
+  setSubmitStatus(result.message||result.code||'Submission failed.','error');
+}
+window.addEventListener('message',function(event){
+  if(!submitInFlight)return;
+  if(!isTrustedAppsScriptOrigin(event.origin))return;
+  var data=event.data;
+  if(!data||data.source!=="replay-converter-apps-script")return;
+  handleSubmitResult(data.payload||{ok:false,status:"error",message:"Apps Script returned an invalid bridge response."});
+});
+submitFrame.addEventListener('load',function(){
+  if(!submitInFlight)return;
+  try{
+    var doc=submitFrame.contentDocument||submitFrame.contentWindow.document;
+    var text=(doc.body&&doc.body.innerText)||doc.documentElement.textContent||'';
+    handleSubmitResult(ReplayAutomation.parseAppsScriptResponseText(text));
+  }catch(e){
+    submitInFlight=false;submitBtn.disabled=false;
+    setSubmitStatus('Submission response could not be read. Check Apps Script deployment access and the sheet before retrying.','error');
+  }
+});
+convertBtn.addEventListener('click',function(){convert();});
+submitBtn.addEventListener('click',function(){submitBattle(false);});
+replaceBtn.addEventListener('click',function(){submitBattle(true);});
 document.getElementById('copy').addEventListener('click',function(){
   navigator.clipboard&&navigator.clipboard.writeText(output.textContent);
   var b=this;b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1500);
+});
+pyodideReadyPromise=bootstrapPyodide(function(text){ if(!status.textContent)status.textContent=text; }).then(function(api){
+  browserApi=api;
+  if(!status.textContent||/Loading parser/.test(status.textContent))status.textContent='Ready. '+APP_VERSION;
+}).catch(function(e){
+  status.style.color='var(--danger)';
+  status.textContent='Advanced parser failed to load: '+(e.message||e);
 });
 })();
 </script>

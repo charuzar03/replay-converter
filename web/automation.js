@@ -111,6 +111,25 @@ function parseAdvancedStatsForReplay(options){
   };
 }
 
+function buildBattleSubmissionPayload(preview, replaceExisting){
+  if(!preview||!preview.basicBattleRow||!preview.advancedStats)throw new Error("Preview the battle before submitting.");
+  return {
+    basicBattleRow:preview.basicBattleRow,
+    replayUrl:preview.replayUrl,
+    advancedStats:preview.advancedStats,
+    warnings:preview.warnings||[],
+    replaceExisting:Boolean(replaceExisting)
+  };
+}
+
+function parseAppsScriptResponseText(text){
+  var raw=String(text||"").trim();
+  if(!raw)throw new Error("Apps Script returned an empty response.");
+  var match=raw.match(/\{[\s\S]*\}/);
+  if(match)raw=match[0];
+  return JSON.parse(raw);
+}
+
 async function buildSingleBattleAutomationPayload(options){
   var basic=buildBasicBattlePayload(options);
   if(!basic.replayUrl)throw new Error("Could not find a replay URL in the Wiglett output.");
@@ -130,8 +149,10 @@ async function buildSingleBattleAutomationPayload(options){
 
 global.ReplayAutomation={
   buildBasicBattlePayload:buildBasicBattlePayload,
+  buildBattleSubmissionPayload:buildBattleSubmissionPayload,
   buildSingleBattleAutomationPayload:buildSingleBattleAutomationPayload,
   parseAdvancedStatsForReplay:parseAdvancedStatsForReplay,
+  parseAppsScriptResponseText:parseAppsScriptResponseText,
   parseReplayUrl:parseReplayUrl
 };
 })(window);
